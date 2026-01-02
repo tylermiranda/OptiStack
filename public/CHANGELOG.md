@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0] - 2026-01-02
+### Added
+- **Enhanced Doctor Export**: Updated the "Share with Doctor" feature to optionally include a full AI-generated safety analysis (interactions & summary) directly in the PDF report.
+
+## [1.4.0] - 2026-01-02
+### Added
+- **AI Analysis Export**: Added ability to export AI stack analysis results to formatted PDF.
+
 ## [1.3.0] - 2026-01-02
 ### Added
 - **Volume-based Costing**: Added support for non-pill units (grams, ml, oz) with decimal dosage support and accurate cost tracking.

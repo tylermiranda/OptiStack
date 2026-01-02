@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { Share2, Download, X, Sun, Moon, FileText } from 'lucide-react';
+import { Share2, Download, X, Sun, Moon, FileText, Sparkles } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from './SettingsContext';
 
 const ShareStackDialog = ({ open, onOpenChange, supplements }) => {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
+    const { settings } = useSettings();
     const [isGenerating, setIsGenerating] = useState(false);
+    const [includeAI, setIncludeAI] = useState(false);
 
     // Filter stacks
     const morningStack = supplements.filter(s => s.schedule?.am && !s.archived);
@@ -141,12 +144,121 @@ const ShareStackDialog = ({ open, onOpenChange, supplements }) => {
                 });
             }
 
+            // AI Analysis Section
+            if (includeAI) {
+                try {
+                    // Check page break before starting AI section
+                    if (yPosition > 200) {
+                        doc.addPage();
+                        yPosition = 20;
+                    } else {
+                        yPosition += 10;
+                    }
+
+                    doc.setFillColor(240, 253, 244);
+                    doc.rect(margin - 5, yPosition - 5, contentWidth + 10, 12, 'F');
+                    doc.setTextColor(21, 128, 61);
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('🤖 AI SAFETY ANALYSIS', margin, yPosition + 4);
+                    yPosition += 18;
+
+                    // Fetch Analysis
+                    const fullStackNames = supplements.filter(s => !s.archived).map(s => s.name);
+                    const prompt = `
+                        Analyze this supplement stack strictly for NEGATIVE INTERACTIONS and SAFETY WARNINGS.
+                        STACK: ${fullStackNames.join(', ')}
+                        Provide the response in JSON format with keys: "interactions" (array of objects with severity, substances, description) and "summary".
+                    `;
+
+                    const response = await fetch("/api/ai/analyze", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ model: settings.aiModel, prompt })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const content = data.choices[0].message.content;
+                        const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+                        const result = JSON.parse(cleanContent);
+
+                        // Summary
+                        doc.setTextColor(0, 0, 0);
+                        doc.setFontSize(11);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Summary:', margin, yPosition);
+                        yPosition += 5;
+
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'normal');
+                        const summaryLines = doc.splitTextToSize(result.summary, contentWidth);
+                        summaryLines.forEach(line => {
+                            if (yPosition > 270) { doc.addPage(); yPosition = 20; }
+                            doc.text(line, margin, yPosition);
+                            yPosition += 5;
+                        });
+                        yPosition += 8;
+
+                        // Interactions
+                        if (result.interactions && result.interactions.length > 0) {
+                            doc.setFontSize(11);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('Potential Interactions:', margin, yPosition);
+                            yPosition += 6;
+
+                            result.interactions.forEach(item => {
+                                if (yPosition > 260) { doc.addPage(); yPosition = 20; }
+
+                                doc.setFontSize(10);
+                                doc.setFont('helvetica', 'bold');
+                                // Color code based on severity
+                                if (item.severity === 'HIGH') doc.setTextColor(220, 38, 38);
+                                else if (item.severity === 'MODERATE') doc.setTextColor(234, 88, 12);
+                                else doc.setTextColor(37, 99, 235);
+
+                                doc.text(`• ${item.severity}: ${item.substances.join(' + ')}`, margin, yPosition);
+                                yPosition += 5;
+
+                                doc.setTextColor(60, 60, 60);
+                                doc.setFont('helvetica', 'normal');
+                                const descLines = doc.splitTextToSize(item.description, contentWidth - 5);
+                                descLines.forEach(line => {
+                                    doc.text(line, margin + 5, yPosition);
+                                    yPosition += 5;
+                                });
+                                yPosition += 3;
+                            });
+                        } else {
+                            doc.setTextColor(22, 163, 74);
+                            doc.text('✓ No clear negative interactions identified.', margin, yPosition);
+                            yPosition += 10;
+                        }
+
+                        // Disclaimer
+                        yPosition += 5;
+                        doc.setFontSize(8);
+                        doc.setTextColor(150, 150, 150);
+                        doc.setFont('helvetica', 'italic');
+                        doc.text("Disclaimer: AI analysis is for informational purposes only and not medical advice.", margin, yPosition);
+                    }
+                } catch (error) {
+                    console.error("AI Analysis failed", error);
+                    doc.setTextColor(220, 38, 38);
+                    doc.text("Error generating AI analysis.", margin, yPosition);
+                }
+            }
+
             // Footer
             const footerY = doc.internal.pageSize.getHeight() - 15;
             doc.setDrawColor(200, 200, 200);
             doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
             doc.setTextColor(150, 150, 150);
             doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal'); // Reset font
             doc.text('Generated by OptiStack - Supplement & Medication Manager', pageWidth / 2, footerY, { align: 'center' });
 
             // Download
@@ -225,6 +337,20 @@ const ShareStackDialog = ({ open, onOpenChange, supplements }) => {
                                         </ul>
                                     </div>
                                 )}
+                            </div>
+
+                            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 mb-4">
+                                <input
+                                    type="checkbox"
+                                    id="includeAI"
+                                    checked={includeAI}
+                                    onChange={(e) => setIncludeAI(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <label htmlFor="includeAI" className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2">
+                                    <Sparkles size={14} className="text-purple-500" />
+                                    Include AI Safety Analysis
+                                </label>
                             </div>
 
                             <button
