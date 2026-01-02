@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSettings } from './SettingsContext';
 import { useAuth } from '../context/AuthContext';
-import { AlertTriangle, CheckCircle, Search, Plus, X, Stethoscope, AlertOctagon } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Search, Plus, X, Stethoscope, AlertOctagon, Download } from 'lucide-react';
+import { jsPDF } from "jspdf";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
 
@@ -110,6 +111,76 @@ export function InteractionChecker({ open, onOpenChange, supplements }) {
         }
     };
 
+    const handleExportPDF = () => {
+        if (!result) return;
+
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(20);
+        doc.setTextColor(40, 40, 40);
+        doc.text("OptiStack - Interaction Analysis", 20, 20);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, 30);
+
+        // Stack Info
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        const allItems = [...activeSupplements.map(s => s.name), ...hypotheticals].join(', ');
+        const splitStack = doc.splitTextToSize(`Analyzed Stack: ${allItems}`, 170);
+        doc.text(splitStack, 20, 45);
+
+        let yPos = 45 + (splitStack.length * 7) + 10;
+
+        // Summary
+        doc.setFontSize(14);
+        doc.text("Summary", 20, yPos);
+        yPos += 10;
+
+        doc.setFontSize(11);
+        const splitSummary = doc.splitTextToSize(result.summary, 170);
+        doc.text(splitSummary, 20, yPos);
+        yPos += (splitSummary.length * 7) + 15;
+
+        // Interactions
+        doc.setFontSize(14);
+        doc.text("Detailed Interactions", 20, yPos);
+        yPos += 10;
+
+        if (result.interactions.length === 0) {
+            doc.setFontSize(11);
+            doc.setTextColor(0, 150, 0);
+            doc.text("No clear negative interactions identified.", 20, yPos);
+        } else {
+            result.interactions.forEach(item => {
+                // Check page break
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.setFontSize(11);
+                doc.setTextColor(200, 0, 0); // Red for severity
+                doc.text(`${item.severity} RISK: ${item.substances.join(' + ')}`, 20, yPos);
+                yPos += 7;
+
+                doc.setTextColor(0, 0, 0);
+                const desc = doc.splitTextToSize(item.description, 160);
+                doc.text(desc, 25, yPos);
+                yPos += (desc.length * 7) + 10;
+            });
+        }
+
+        // Disclaimer footer
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("Disclaimer: AI-generated analysis. Not medical advice. Consult a professional.", 105, 290, { align: "center" });
+
+        doc.save("optistack-analysis.pdf");
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -197,7 +268,15 @@ export function InteractionChecker({ open, onOpenChange, supplements }) {
                     {result && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="rounded-lg border bg-card p-4">
-                                <h4 className="font-semibold mb-2">Summary</h4>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="font-semibold">Summary</h4>
+                                    <button
+                                        onClick={handleExportPDF}
+                                        className="text-xs flex items-center gap-1 text-primary hover:underline"
+                                    >
+                                        <Download size={14} /> Export PDF
+                                    </button>
+                                </div>
                                 <p className="text-sm text-muted-foreground">{result.summary}</p>
                             </div>
 
