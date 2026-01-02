@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExternalLink, Star, Tag, AlertTriangle, Sparkles, User, Beaker, Pencil, Sun, Moon, ChevronDown, ChevronUp, Trash2, Archive, ArchiveRestore } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
 
 const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -23,34 +24,52 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
                     {/* Actions */}
                     <div className="flex items-center gap-1 sm:gap-2">
                         {onEdit && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onEdit(supplement.id); }}
-                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-primary hover:bg-secondary"
-                                title="Edit"
-                            >
-                                <Pencil size={18} className="sm:size-[16px]" />
-                            </button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onEdit(supplement.id); }}
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-primary hover:bg-secondary"
+                                    >
+                                        <Pencil size={18} className="sm:size-[16px]" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Edit</p>
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                         {onArchive && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onArchive(supplement.id); }}
-                                className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 ${supplement.archived
-                                    ? "text-muted-foreground hover:text-green-600 hover:bg-green-50"
-                                    : "text-muted-foreground hover:text-orange-600 hover:bg-orange-50"
-                                    }`}
-                                title={supplement.archived ? "Unarchive" : "Archive"}
-                            >
-                                {supplement.archived ? <ArchiveRestore size={18} className="sm:size-[16px]" /> : <Archive size={18} className="sm:size-[16px]" />}
-                            </button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onArchive(supplement.id); }}
+                                        className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 ${supplement.archived
+                                            ? "text-muted-foreground hover:text-green-600 hover:bg-green-50"
+                                            : "text-muted-foreground hover:text-orange-600 hover:bg-orange-50"
+                                            }`}
+                                    >
+                                        {supplement.archived ? <ArchiveRestore size={18} className="sm:size-[16px]" /> : <Archive size={18} className="sm:size-[16px]" />}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{supplement.archived ? "Unarchive" : "Archive"}</p>
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                         {onDelete && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(supplement.id); }}
-                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                title="Delete"
-                            >
-                                <Trash2 size={18} className="sm:size-[16px]" />
-                            </button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onDelete(supplement.id); }}
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                        <Trash2 size={18} className="sm:size-[16px]" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Delete</p>
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                     </div>
 

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Link as LinkIcon, DollarSign, Activity, Sparkles, AlertTriangle, Download, X, Save, Sun, Moon, AlertCircle } from 'lucide-react';
+import { Plus, Link as LinkIcon, DollarSign, Activity, Sparkles, AlertTriangle, Download, X, Save, Sun, Moon, AlertCircle, Info } from 'lucide-react';
 import { useSettings } from './SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
 
 const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
     const defaultState = {
@@ -216,7 +217,17 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                         </div>
                     </div>
                     <div>
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">Personal Rating</label>
+                        <div className="flex items-center gap-1 mb-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Personal Rating</label>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Info size={14} className="text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Rate from 1 to 5 stars</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
                         <input
                             type="number"
                             min="1"
@@ -242,15 +253,22 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 onChange={e => setFormData({ ...formData, link: e.target.value })}
                             />
                         </div>
-                        <button
-                            type="button"
-                            onClick={fetchProductDetails}
-                            disabled={isFetching || !formData.link}
-                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                        >
-                            <Download size={16} className="mr-2" />
-                            {isFetching ? 'Fetching...' : 'Fetch'}
-                        </button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    type="button"
+                                    onClick={fetchProductDetails}
+                                    disabled={isFetching || !formData.link}
+                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                                >
+                                    <Download size={16} className="mr-2" />
+                                    {isFetching ? 'Fetching...' : 'Fetch'}
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Auto-fill details from URL</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 </div>
 
@@ -344,14 +362,21 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                             <label className="text-sm font-medium flex items-center gap-1.5 text-foreground">
                                 <Sparkles size={14} className="text-primary" /> AI Analysis
                             </label>
-                            <button
-                                type="button"
-                                onClick={analyzeSupplement}
-                                disabled={isAnalyzing || !formData.name}
-                                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-primary text-primary hover:bg-primary/10 h-7 px-3"
-                            >
-                                {isAnalyzing ? 'Analyzing...' : 'Run Analysis'}
-                            </button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={analyzeSupplement}
+                                        disabled={isAnalyzing || !formData.name}
+                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-primary text-primary hover:bg-primary/10 h-7 px-3"
+                                    >
+                                        {isAnalyzing ? 'Analyzing...' : 'Run Analysis'}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Analyze ingredients using AI</p>
+                                </TooltipContent>
+                            </Tooltip>
                         </div>
 
                         <textarea

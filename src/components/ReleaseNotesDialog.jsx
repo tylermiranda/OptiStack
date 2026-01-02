@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
+import Markdown from 'react-markdown';
 import {
     Dialog,
     DialogContent,
@@ -51,9 +51,7 @@ const ReleaseNotesDialog = ({ open, onOpenChange }) => {
                             Loading notes...
                         </div>
                     ) : (
-                        <div className="prose dark:prose-invert prose-sm max-w-none">
-                            <ReactMarkdown>{markdown}</ReactMarkdown>
-                        </div>
+                        <Markdown>{markdown}</Markdown>
                     )}
                 </ScrollArea>
             </DialogContent>
