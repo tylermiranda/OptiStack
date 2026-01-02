@@ -3,14 +3,24 @@ import React, { createContext, useContext, useState, useEffect } from "react"
 const SettingsContext = createContext()
 
 export function SettingsProvider({ children, storageKey = "optistack-settings" }) {
+    const [aiAvailable, setAiAvailable] = useState(false)
+
     const [settings, setSettings] = useState(() => {
         const saved = localStorage.getItem(storageKey)
         return saved ? JSON.parse(saved) : {
             aiEnabled: true,
-            apiKey: import.meta.env.VITE_OPENROUTER_API_KEY || "",
+            apiKey: "",
             aiModel: "google/gemini-2.0-flash-001"
         }
     })
+
+    // Check if AI is available on the server
+    useEffect(() => {
+        fetch('/api/ai/status')
+            .then(res => res.json())
+            .then(data => setAiAvailable(data.available))
+            .catch(() => setAiAvailable(false))
+    }, [])
 
     useEffect(() => {
         localStorage.setItem(storageKey, JSON.stringify(settings))
@@ -29,7 +39,12 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
     ]
 
     const value = {
-        settings,
+        settings: {
+            ...settings,
+            // AI is only truly enabled if server has the key AND user wants it
+            aiEnabled: settings.aiEnabled && aiAvailable
+        },
+        aiAvailable,
         updateSettings,
         availableModels
     }

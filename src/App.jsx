@@ -152,9 +152,9 @@ function Dashboard() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl text-foreground bg-background min-h-screen transition-colors duration-300">
-            <header className="mb-12 pt-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+        <div className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-5xl text-foreground bg-background min-h-screen transition-colors duration-300 pb-24 md:pb-8 pt-[env(safe-area-inset-top,1rem)] overflow-x-hidden">
+            <header className="mb-8 md:mb-12 pt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4 shrink-0">
                     <div className="bg-primary text-primary-foreground p-3 rounded-lg shadow-lg shadow-primary/20">
                         <Sparkles size={24} />
                     </div>
@@ -165,48 +165,52 @@ function Dashboard() {
                         <p className="text-muted-foreground text-sm font-medium">Supplement Manager</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    {!!user.is_admin && (
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full sm:w-auto">
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-muted/50 p-1 rounded-lg shrink-0">
+                        {!!user.is_admin && (
+                            <button
+                                onClick={() => setCurrentView('admin')}
+                                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                aria-label="Admin"
+                                title="Admin Dashboard"
+                            >
+                                <Shield size={16} className="sm:size-[18px]" />
+                            </button>
+                        )}
                         <button
-                            onClick={() => setCurrentView('admin')}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
-                            aria-label="Admin"
-                            title="Admin Dashboard"
+                            onClick={() => setIsRefillOpen(true)}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                            aria-label="Refill Assistant"
+                            title="Refill Assistant"
                         >
-                            <Shield size={20} />
+                            <Pill size={16} className="sm:size-[18px]" />
                         </button>
-                    )}
-                    <button
-                        onClick={() => setIsRefillOpen(true)}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
-                        aria-label="Refill Assistant"
-                        title="Refill Assistant"
-                    >
-                        <Pill size={20} />
-                    </button>
-                    <button
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
-                        aria-label="Settings"
-                    >
-                        <Settings size={20} />
-                    </button>
-                    <ModeToggle />
-                    <button
-                        onClick={logout}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
-                        aria-label="Logout"
-                        title="Logout"
-                    >
-                        <LogOut size={20} />
-                    </button>
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                            aria-label="Settings"
+                        >
+                            <Settings size={16} className="sm:size-[18px]" />
+                        </button>
+                        <div className="h-4 w-[1px] bg-border mx-0.5 sm:mx-1" />
+                        <ModeToggle />
+                        <button
+                            onClick={logout}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                            aria-label="Logout"
+                            title="Logout"
+                        >
+                            <LogOut size={16} className="sm:size-[18px]" />
+                        </button>
+                    </div>
+
                     <Dialog open={isDialogOpen} onOpenChange={onOpenChange}>
                         <DialogTrigger asChild>
-                            <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-                                <Plus className="mr-2 h-4 w-4" /> Add Supplement
+                            <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 shadow-lg shadow-primary/20 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+                                <Plus className="mr-2 h-4 w-4" /> <span>Add Supplement</span>
                             </button>
                         </DialogTrigger>
-                        <DialogContent className="max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-h-[95vh] sm:max-h-[90vh] overflow-y-auto w-[95vw] sm:max-w-lg p-4 sm:p-6">
                             <DialogHeader>
                                 <DialogTitle>{editingId ? 'Edit Supplement' : 'Add New Supplement'}</DialogTitle>
                             </DialogHeader>

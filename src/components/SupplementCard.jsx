@@ -8,54 +8,54 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
         <div className="rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md">
             {/* Header: Name, Price, Actions, Toggle */}
             <div
-                className="flex items-center justify-between p-5 cursor-pointer"
+                className="flex flex-col xs:flex-row items-start xs:items-center justify-between p-4 sm:p-5 cursor-pointer gap-4"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-lg leading-none tracking-tight">{supplement.name}</h3>
-                    <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground">
-                        <Tag size={12} className="mr-1" />
+                    <h3 className="font-semibold text-base sm:text-lg leading-tight tracking-tight">{supplement.name}</h3>
+                    <div className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground whitespace-nowrap">
+                        <Tag size={10} className="mr-1 sm:size-[12px]" />
                         ${supplement.price}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between xs:justify-end w-full xs:w-auto gap-3">
                     {/* Actions */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 sm:gap-2">
                         {onEdit && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEdit(supplement.id); }}
-                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-8 w-8 text-muted-foreground hover:text-primary hover:bg-secondary"
+                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-primary hover:bg-secondary"
                                 title="Edit"
                             >
-                                <Pencil size={16} />
+                                <Pencil size={18} className="sm:size-[16px]" />
                             </button>
                         )}
                         {onArchive && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onArchive(supplement.id); }}
-                                className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-8 w-8 ${supplement.archived
+                                className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 ${supplement.archived
                                     ? "text-muted-foreground hover:text-green-600 hover:bg-green-50"
                                     : "text-muted-foreground hover:text-orange-600 hover:bg-orange-50"
                                     }`}
                                 title={supplement.archived ? "Unarchive" : "Archive"}
                             >
-                                {supplement.archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                                {supplement.archived ? <ArchiveRestore size={18} className="sm:size-[16px]" /> : <Archive size={18} className="sm:size-[16px]" />}
                             </button>
                         )}
                         {onDelete && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDelete(supplement.id); }}
-                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                 title="Delete"
                             >
-                                <Trash2 size={16} />
+                                <Trash2 size={18} className="sm:size-[16px]" />
                             </button>
                         )}
                     </div>
 
                     {/* Toggle Icon */}
-                    <div className="text-muted-foreground">
+                    <div className="text-muted-foreground px-1">
                         {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                 </div>

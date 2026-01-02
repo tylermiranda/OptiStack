@@ -71,7 +71,18 @@
         @apply border-border;
     }
 
+    html,
+    body {
+        overflow-x: hidden;
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
     body {
         @apply bg-background text-foreground;
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
     }
 }

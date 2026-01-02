@@ -2,6 +2,22 @@
 
 A Docker-deployable web application for managing your supplement stack with scheduling, tracking, and OIDC authentication support.
 
+![Desktop Dashboard](public/screenshots/desktop_dashboard.png)
+
+<p align="center">
+  <img src="public/screenshots/mobile_dashboard.png" width="300" alt="Mobile Dashboard">
+</p>
+
+### Add Supplement Form
+
+Modern, intuitive form with AI-powered analysis and Amazon integration.
+
+![Add Supplement Desktop](public/screenshots/add_supplement_desktop.png)
+
+<p align="center">
+  <img src="public/screenshots/add_supplement_mobile.png" width="300" alt="Add Supplement Mobile">
+</p>
+
 ## Quick Start
 
 ### 1. Clone and Configure
@@ -46,6 +62,7 @@ On first startup, a default admin user is created:
 | `SESSION_SECRET` | ✅ | - | Secret key for session encryption |
 | `ADMIN_PASSWORD` | ✅* | - | Password for default admin user |
 | `ADMIN_USERNAME` | ❌ | `admin` | Username for default admin user |
+| `OPENROUTER_API_KEY` | ❌ | - | [OpenRouter](https://openrouter.ai/keys) API key for AI analysis |
 | `FRONTEND_URL` | ❌ | `http://localhost:3000` | Frontend URL for redirects |
 | `OIDC_ISSUER` | ❌ | - | OIDC provider issuer URL |
 | `OIDC_AUTH_URL` | ❌ | - | OIDC authorization endpoint |
@@ -59,11 +76,33 @@ On first startup, a default admin user is created:
 
 ## Features
 
-- 📋 Track supplements with dosage, schedule, and pricing
-- 🕐 Morning/Evening pill scheduling
-- 🔗 Amazon product scraping for auto-fill
-- 👤 User accounts with local or OIDC authentication
 - 🔐 Admin dashboard for user and settings management
+- 📱 Mobile-optimized UI with safe-area support for iOS
+- 🚀 PWA support for "Add to Home Screen" on iPhone/iPad
+- 🤖 AI-powered supplement analysis (optional)
+
+## AI Features (Optional)
+
+OptiStack includes optional AI-powered features for analyzing supplements and your full stack:
+
+- **Supplement Analysis**: Get AI-generated summaries, recommended dosages, side effects, and optimal timing
+- **Stack Analysis**: Analyze your entire supplement protocol for synergies, benefits, and potential interactions
+
+AI features are **disabled by default** and will only appear in the UI when you provide an OpenRouter API key:
+
+1. Get a free API key from [OpenRouter](https://openrouter.ai/keys)
+2. Add it to your `.env` file: `OPENROUTER_API_KEY=sk-or-...`
+3. Restart the container
+
+If no API key is configured, the AI sections are completely hidden from the UI.
+
+> **Note:** Currently only [OpenRouter](https://openrouter.ai) is supported as an AI provider. Local AI support (e.g., Ollama) is planned for a future release.
+## Mobile & PWA Support
+
+OptiStack is designed to work seamlessly on mobile devices:
+- **Responsive Layout**: Adapts to all screen sizes with a mobile-first approach.
+- **iOS PWA Ready**: Includes a `webmanifest`, standard Apple meta tags, and high-resolution icons for a native-like experience when added to the home screen.
+- **Safe Area Support**: Automatically handles notches and home indicators on modern iOS devices.
 
 ## Development
 

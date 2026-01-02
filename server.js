@@ -317,11 +317,20 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 
+// AI Status Endpoint - tells frontend if AI is available
+app.get('/api/ai/status', (req, res) => {
+    const isAvailable = !!process.env.OPENROUTER_API_KEY;
+    res.json({ available: isAvailable });
+});
+
 // AI Proxy Endpoint (keeps API keys server-side)
 app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
     const { prompt, model } = req.body;
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'AI not configured on server' });
+    if (!apiKey) {
+        console.warn('AI Analysis request failed: OPENROUTER_API_KEY is not set in environment.');
+        return res.status(500).json({ error: 'AI not configured. Please set OPENROUTER_API_KEY in .env.' });
+    }
 
     try {
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -335,10 +344,16 @@ app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
             body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }] })
         });
         const data = await response.json();
+
+        if (!response.ok) {
+            console.error('OpenRouter API Error:', data);
+            return res.status(response.status).json({ error: data.error?.message || 'AI provider returned an error' });
+        }
+
         res.json(data);
     } catch (error) {
         console.error('AI Proxy Error:', error.message);
-        res.status(500).json({ error: 'AI request failed' });
+        res.status(500).json({ error: 'AI request failed: ' + error.message });
     }
 });
 

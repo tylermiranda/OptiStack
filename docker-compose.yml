@@ -20,4 +20,5 @@ services:
       - JWT_SECRET
       - ADMIN_USERNAME
       - ADMIN_PASSWORD
+      - OPENROUTER_API_KEY
     restart: always
