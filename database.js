@@ -67,6 +67,7 @@ function initDb() {
             short_name TEXT,
             link TEXT,
             price REAL,
+            quantity INTEGER,
             dosage TEXT,
             schedule_am INTEGER DEFAULT 0,
             schedule_pm INTEGER DEFAULT 0,
@@ -82,6 +83,17 @@ function initDb() {
             FOREIGN KEY(user_id) REFERENCES users(id)
         )`, (err) => {
             if (!err) {
+                // Migration: Check for new columns
+                db.all("PRAGMA table_info(supplements)", (err, rows) => {
+                    if (!err && rows) {
+                        const hasQuantity = rows.some(r => r.name === 'quantity');
+                        if (!hasQuantity) {
+                            console.log('Migrating database: Adding quantity column to supplements...');
+                            db.run("ALTER TABLE supplements ADD COLUMN quantity INTEGER");
+                        }
+                    }
+                });
+
                 // Create indexes for performance
                 db.run('CREATE INDEX IF NOT EXISTS idx_supplements_user_id ON supplements(user_id)');
                 db.run('CREATE INDEX IF NOT EXISTS idx_federated_provider_subject ON federated_credentials(provider, subject)');

@@ -14,9 +14,17 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
             >
                 <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-base sm:text-lg leading-tight tracking-tight">{supplement.name}</h3>
-                    <div className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground whitespace-nowrap">
-                        <Tag size={10} className="mr-1 sm:size-[12px]" />
-                        ${supplement.price}
+                    <div className="flex flex-col gap-0.5 items-start">
+                        <div className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground whitespace-nowrap">
+                            <Tag size={10} className="mr-1 sm:size-[12px]" />
+                            ${supplement.price}
+                        </div>
+                        {/* Cost Per Day Calculation */}
+                        {supplement.price > 0 && supplement.quantity > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-medium ml-0.5">
+                                ${((supplement.price / supplement.quantity) * ((supplement.schedule?.am ? (supplement.schedule.amPills || 1) : 0) + (supplement.schedule?.pm ? (supplement.schedule.pmPills || 1) : 0))).toFixed(2)} / day
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -130,6 +138,30 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
                             ))}
                         </div>
                     </div>
+
+                    {/* Cost Breakdown Section */}
+                    {supplement.price > 0 && supplement.quantity > 0 && (
+                        <div className="mb-6 grid grid-cols-3 gap-2 border rounded-lg p-3 bg-muted/20">
+                            <div className="text-center">
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Daily</p>
+                                <p className="font-semibold text-sm">
+                                    ${((supplement.price / supplement.quantity) * ((supplement.schedule?.am ? (supplement.schedule.amPills || 1) : 0) + (supplement.schedule?.pm ? (supplement.schedule.pmPills || 1) : 0))).toFixed(2)}
+                                </p>
+                            </div>
+                            <div className="text-center border-l border-border/50">
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Monthly</p>
+                                <p className="font-semibold text-sm">
+                                    ${(((supplement.price / supplement.quantity) * ((supplement.schedule?.am ? (supplement.schedule.amPills || 1) : 0) + (supplement.schedule?.pm ? (supplement.schedule.pmPills || 1) : 0))) * 30).toFixed(2)}
+                                </p>
+                            </div>
+                            <div className="text-center border-l border-border/50">
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Yearly</p>
+                                <p className="font-semibold text-sm">
+                                    ${(((supplement.price / supplement.quantity) * ((supplement.schedule?.am ? (supplement.schedule.amPills || 1) : 0) + (supplement.schedule?.pm ? (supplement.schedule.pmPills || 1) : 0))) * 365).toFixed(2)}
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Details: Taking For */}
                     <div className="space-y-4">

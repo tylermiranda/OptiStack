@@ -11,6 +11,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         shortName: '',
         link: '',
         price: '',
+        quantity: '',
         dosage: '',
         schedule: { am: false, pm: false, amPills: 1, pmPills: 1 },
         reason: '',
@@ -58,7 +59,8 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 ...prev,
                 name: data.name || prev.name,
                 price: data.price ? String(data.price) : prev.price,
-                dosage: data.dosage || prev.dosage
+                dosage: data.dosage || prev.dosage,
+                quantity: data.quantity ? String(data.quantity) : prev.quantity
             }));
         } catch (error) {
             console.error("Fetch failed:", error);
@@ -156,6 +158,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         const submissionData = {
             ...formData,
             price: parseFloat(formData.price) || 0,
+            quantity: formData.quantity ? parseInt(formData.quantity) : null,
             rating: formData.rating ? parseInt(formData.rating) : 0
         };
 
@@ -215,6 +218,43 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 onChange={e => setFormData({ ...formData, price: e.target.value })}
                             />
                         </div>
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-1 mb-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Quantity</label>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Info size={14} className="text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Total pills/servings in container</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                        <input
+                            type="number"
+                            min="1"
+                            className={inputClassName}
+                            value={formData.quantity}
+                            onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+                            placeholder="e.g. 90"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">
+                            Dosage <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            className={inputClassName}
+                            placeholder="e.g. 500mg"
+                            value={formData.dosage}
+                            onChange={e => setFormData({ ...formData, dosage: e.target.value })}
+                            required
+                        />
                     </div>
                     <div>
                         <div className="flex items-center gap-1 mb-2">
