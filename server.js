@@ -421,6 +421,15 @@ app.get('/api/scrape', authenticateToken, async (req, res) => {
             dosage = dosageMatch[0];
         }
 
+        // Extract Quantity/Count Strategy
+        let quantity = null;
+        // Look for patterns like "120 Count", "90 Capsules", "60 Softgels"
+        const quantityRegex = /(\d+)\s*(?:Count|Capsules|Softgels|Tablets|Veggie\s*Caps|Gummies|Servings)/i;
+        const quantityMatch = title.match(quantityRegex);
+        if (quantityMatch) {
+            quantity = parseInt(quantityMatch[1], 10);
+        }
+
         if (!title) {
             throw new Error('Could not parse product page');
         }
@@ -428,7 +437,8 @@ app.get('/api/scrape', authenticateToken, async (req, res) => {
         res.json({
             name: title,
             price: price,
-            dosage: dosage
+            dosage: dosage,
+            quantity: quantity
         });
 
     } catch (error) {
@@ -452,6 +462,7 @@ app.get('/api/supplements', authenticateToken, (req, res) => {
             shortName: s.short_name,
             link: s.link,
             price: s.price,
+            quantity: s.quantity,
             dosage: s.dosage,
             schedule: {
                 am: !!s.schedule_am,
@@ -474,11 +485,11 @@ app.get('/api/supplements', authenticateToken, (req, res) => {
 app.post('/api/supplements', authenticateToken, (req, res) => {
     const s = req.body;
     db.run(`INSERT INTO supplements (
-        user_id, name, short_name, link, price, dosage, 
+        user_id, name, short_name, link, price, quantity, dosage, 
         schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
         reason, ai_analysis, recommended_dosage, side_effects, rating, archived
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-        req.user.id, s.name, s.shortName, s.link, s.price, s.dosage,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        req.user.id, s.name, s.shortName, s.link, s.price, s.quantity, s.dosage,
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0
     ], function (err) {
@@ -492,11 +503,11 @@ app.put('/api/supplements/:id', authenticateToken, (req, res) => {
     const s = req.body;
     const id = req.params.id;
     db.run(`UPDATE supplements SET 
-        name = ?, short_name = ?, link = ?, price = ?, dosage = ?, 
+        name = ?, short_name = ?, link = ?, price = ?, quantity = ?, dosage = ?, 
         schedule_am = ?, schedule_pm = ?, schedule_am_pills = ?, schedule_pm_pills = ?,
         reason = ?, ai_analysis = ?, recommended_dosage = ?, side_effects = ?, rating = ?, archived = ?
         WHERE id = ? AND user_id = ?`, [
-        s.name, s.shortName, s.link, s.price, s.dosage,
+        s.name, s.shortName, s.link, s.price, s.quantity, s.dosage,
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, s.archived ? 1 : 0,
         id, req.user.id

@@ -4,6 +4,7 @@ const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 import SupplementCard from './components/SupplementCard';
 import AddSupplementForm from './components/AddSupplementForm';
 import DailyVisualization from './components/DailyVisualization';
+import CostOverview from './components/CostOverview';
 const StackAnalysis = lazy(() => import('./components/StackAnalysis'));
 import { ThemeProvider } from "./components/theme-provider"
 import { ModeToggle } from "./components/mode-toggle"
@@ -333,6 +334,7 @@ function Dashboard() {
 
                 <div className="mt-16 space-y-12">
                     <DailyVisualization supplements={activeSupplements} />
+                    <CostOverview supplements={activeSupplements} />
                     <Suspense fallback={<div className="text-center py-4 text-muted-foreground">Loading analysis...</div>}>
                         <StackAnalysis supplements={activeSupplements} />
                     </Suspense>
