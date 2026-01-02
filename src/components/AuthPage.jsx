@@ -53,7 +53,7 @@ const AuthPage = () => {
                             <h1 className="text-2xl font-bold tracking-tight text-primary">
                                 OptiStack
                             </h1>
-                            <p className="text-muted-foreground text-sm font-medium">Supplement Manager</p>
+                            <p className="text-muted-foreground text-sm font-medium">Supplement & Medication Manager</p>
                         </div>
                     </div>
                     <h2 className="text-3xl font-bold tracking-tight">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>

@@ -1,7 +1,7 @@
 {
     "name": "supplement-manager",
     "private": true,
-    "version": "1.0.2",
+    "version": "1.2.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -27,7 +27,9 @@
         "express-rate-limit": "^8.2.1",
         "express-session": "^1.18.0",
         "jsonwebtoken": "^9.0.2",
+        "jspdf": "^3.0.4",
         "lucide-react": "^0.300.0",
+        "multer": "^2.0.2",
         "passport": "^0.7.0",
         "passport-openidconnect": "^0.1.2",
         "puppeteer": "^21.6.0",

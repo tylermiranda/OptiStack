@@ -21,6 +21,7 @@ services:
       - ADMIN_USERNAME
       - ADMIN_PASSWORD
       - OPENROUTER_API_KEY
+      - DISABLE_AUTH
     volumes:
       # Persist database across container restarts
       - optistack_data:/app/data

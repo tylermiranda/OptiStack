@@ -18,10 +18,27 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('token', urlToken);
             window.history.replaceState({}, document.title, window.location.pathname);
         }
+
+        // Check if auth is disabled
+        fetch('/api/public/config')
+            .then(res => res.json())
+            .then(data => {
+                if (data.authDisabled) {
+                    console.log('Auth is disabled by server configuration.');
+                    const dummyUser = { id: 'admin', username: 'admin', is_admin: 1 };
+                    setUser(dummyUser);
+                    setToken('DISABLED'); // Dummy token
+                }
+            })
+            .catch(err => console.error('Failed to fetch public config:', err));
     }, []);
 
     useEffect(() => {
         if (token) {
+            if (token === 'DISABLED') {
+                setLoading(false);
+                return;
+            }
             // Decode token (simple base64 decode of payload)
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
@@ -54,7 +71,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, token, login, logout, loading, isAuthDisabled: token === 'DISABLED' }}>
             {children}
         </AuthContext.Provider>
     );

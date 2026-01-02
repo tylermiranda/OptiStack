@@ -9,9 +9,12 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import db from './database.js';
+import multer from 'multer';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const DISABLE_AUTH = process.env.DISABLE_AUTH === 'true';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -128,7 +131,10 @@ const configurePassport = () => {
 };
 
 // Initial config
-configurePassport();
+// Initial config
+if (!DISABLE_AUTH) {
+    configurePassport();
+}
 
 passport.serializeUser(function (user, cb) {
     process.nextTick(function () {
@@ -144,6 +150,11 @@ passport.deserializeUser(function (user, cb) {
 
 // JWT Middleware
 const authenticateToken = (req, res, next) => {
+    if (DISABLE_AUTH) {
+        req.user = { id: 1, username: 'admin', is_admin: 1 };
+        return next();
+    }
+
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -158,6 +169,8 @@ const authenticateToken = (req, res, next) => {
 
 // Admin Middleware
 const requireAdmin = (req, res, next) => {
+    if (DISABLE_AUTH) return next();
+
     if (!req.user || !req.user.is_admin) {
         return res.status(403).json({ error: 'Admin access required' });
     }
@@ -165,6 +178,13 @@ const requireAdmin = (req, res, next) => {
 };
 
 // Auth Routes
+
+// Public Config
+app.get('/api/public/config', (req, res) => {
+    res.json({
+        authDisabled: DISABLE_AUTH
+    });
+});
 
 // OIDC Login
 app.get('/auth/login', (req, res, next) => {
@@ -240,6 +260,66 @@ app.post('/api/admin/settings', authenticateToken, requireAdmin, (req, res) => {
             res.json({ message: 'Settings saved' });
         });
     });
+});
+
+
+// Maintenance Routes
+
+// Configure multer for file upload
+const upload = multer({ dest: 'uploads/' });
+
+// Download Backup
+app.get('/api/admin/backup', authenticateToken, requireAdmin, (req, res) => {
+    // Get DB path from environment or default (same logic as database.js)
+    const dataDir = process.env.DATA_PATH || __dirname;
+    const dbPath = path.join(dataDir, 'supplements.db');
+
+    if (fs.existsSync(dbPath)) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        res.download(dbPath, `supplements_backup_${timestamp}.db`);
+    } else {
+        res.status(404).json({ error: 'Database file not found' });
+    }
+});
+
+// Restore Backup
+app.post('/api/admin/restore', authenticateToken, requireAdmin, upload.single('backup'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const dataDir = process.env.DATA_PATH || __dirname;
+    const dbPath = path.join(dataDir, 'supplements.db');
+    const backupPath = req.file.path;
+
+    // Safety check: Ensure it's a valid SQLite file (basic check)
+    // For now we trust the admin input but could add header checks
+
+    try {
+        // Prepare to overwrite
+        // We use fs.copyFile to overwrite.
+        // NOTE: In a high-traffic production app, we should close the DB connection first.
+        // but explicit close isn't strictly exposed in our database.js wrapper effortlessly without adding a method.
+        // However, FS operations on linux/mac are usually atomic enough for a replacement, or valid enough to crash and restart.
+
+        fs.copyFileSync(backupPath, dbPath);
+
+        // Cleanup uploaded file
+        fs.unlinkSync(backupPath);
+
+        res.json({ message: 'Restore successful. Server restarting...' });
+
+        // Restart server to reload DB connection safely
+        // In Docker/Nodemon environments, exiting process triggers a restart
+        setTimeout(() => {
+            console.log('Restarting server after restore...');
+            process.exit(0);
+        }, 1000);
+
+    } catch (error) {
+        console.error('Restore failed:', error);
+        res.status(500).json({ error: 'Restore failed: ' + error.message });
+    }
 });
 
 // Manual Register
@@ -534,4 +614,7 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    if (DISABLE_AUTH) {
+        console.log('WARNING: Authentication is DISABLED. Running in single-user admin mode.');
+    }
 });
