@@ -1,0 +1,137 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>OptiStack</Name>
+  <Repository>ghcr.io/tylermiranda/optistack:latest</Repository>
+  <Registry>https://github.com/tylermiranda/OptiStack/pkgs/container/optistack</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/tylermiranda/OptiStack/issues</Support>
+  <Project>https://github.com/tylermiranda/OptiStack</Project>
+  <Overview>OptiStack is a supplement tracking and management application.&#xD;
+&#xD;
+Features:&#xD;
+- Track supplement inventory&#xD;
+- Manage daily stacks&#xD;
+- Refill assistant with AI-powered suggestions&#xD;
+- Admin dashboard&#xD;
+&#xD;
+Important: You must set the JWT_SECRET and SESSION_SECRET for the application to function securely.</Overview>
+  <Category>HomeAutomation: Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/tylermiranda/OptiStack/main/public/favicon.svg</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1735777200</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Description>OptiStack is a supplement tracking and management application.</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>3000</HostPort>
+        <ContainerPort>3000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/optistack</HostDir>
+      <ContainerDir>/app/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Value>3000</Value>
+      <Name>PORT</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>change-this-password</Value>
+      <Name>ADMIN_PASSWORD</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>admin</Value>
+      <Name>ADMIN_USERNAME</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>your-secure-jwt-secret-here</Value>
+      <Name>JWT_SECRET</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>your-secure-session-secret-here</Value>
+      <Name>SESSION_SECRET</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OPENROUTER_API_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>http://[IP]:[PORT:3000]</Value>
+      <Name>FRONTEND_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>http://[IP]:[PORT:3000]/auth/callback</Value>
+      <Name>OIDC_CALLBACK_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OIDC_ISSUER</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OIDC_AUTH_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OIDC_TOKEN_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OIDC_USERINFO_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OIDC_CLIENT_ID</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OIDC_CLIENT_SECRET</Name>
+      <Mode/>
+    </Variable>
+  </Environment>
+  <Config Name="Web Port" Target="3000" Default="3000" Mode="tcp" Description="Port for the OptiStack web interface." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Application Data" Target="/app/data" Default="/mnt/user/appdata/optistack" Mode="rw" Description="Persistent storage for the database and other data." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/optistack</Config>
+  <Config Name="JWT Secret" Target="JWT_SECRET" Default="generate-a-secure-secret" Mode="" Description="Secret used for signing JSON Web Tokens. MUST return to a secure random string." Type="Variable" Display="always" Required="true" Mask="true">your-secure-jwt-secret-here</Config>
+  <Config Name="Session Secret" Target="SESSION_SECRET" Default="generate-a-secure-secret" Mode="" Description="Secret used for signing session cookies. MUST return to a secure random string." Type="Variable" Display="always" Required="true" Mask="true">your-secure-session-secret-here</Config>
+  <Config Name="Admin Username" Target="ADMIN_USERNAME" Default="admin" Mode="" Description="Username for the initial admin account." Type="Variable" Display="always" Required="true" Mask="false">admin</Config>
+  <Config Name="Admin Password" Target="ADMIN_PASSWORD" Default="change-this-password" Mode="" Description="Password for the initial admin account." Type="Variable" Display="always" Required="true" Mask="true">change-this-password</Config>
+  <Config Name="OpenRouter API Key" Target="OPENROUTER_API_KEY" Default="" Mode="" Description="Optional: API Key for OpenRouter AI features." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Frontend URL" Target="FRONTEND_URL" Default="http://[IP]:[PORT:3000]" Mode="" Description="URL where the frontend is accessible. Used for OIDC redirects." Type="Variable" Display="advanced" Required="true" Mask="false">http://[IP]:[PORT:3000]</Config>
+  <Config Name="OIDC Callback URL" Target="OIDC_CALLBACK_URL" Default="http://[IP]:[PORT:3000]/auth/callback" Mode="" Description="Callback URL for OIDC authentication." Type="Variable" Display="advanced" Required="false" Mask="false">http://[IP]:[PORT:3000]/auth/callback</Config>
+  <!-- OIDC Optional Configs -->
+  <Config Name="OIDC Issuer" Target="OIDC_ISSUER" Default="" Mode="" Description="OIDC Provider Issuer URL." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC Auth URL" Target="OIDC_AUTH_URL" Default="" Mode="" Description="OIDC Authorization URL." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC Token URL" Target="OIDC_TOKEN_URL" Default="" Mode="" Description="OIDC Token URL." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC UserInfo URL" Target="OIDC_USERINFO_URL" Default="" Mode="" Description="OIDC UserInfo URL." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC Client ID" Target="OIDC_CLIENT_ID" Default="" Mode="" Description="OIDC Client ID." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC Client Secret" Target="OIDC_CLIENT_SECRET" Default="" Mode="" Description="OIDC Client Secret." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+</Container>
