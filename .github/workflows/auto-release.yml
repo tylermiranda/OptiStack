@@ -55,6 +55,29 @@ jobs:
           git push origin main
           git push origin v${{ env.NEW_VERSION }}
 
+
+      - name: Extract Release Notes
+        id: notes
+        run: |
+          VERSION=${{ env.NEW_VERSION }}
+          # Extract content between "## [VERSION]" and the next "## "
+          # Assumes public/CHANGELOG.md exists
+          if [ -f "public/CHANGELOG.md" ]; then
+            awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" public/CHANGELOG.md > release_notes.md
+          else
+            echo "No CHANGELOG found" > release_notes.md
+          fi
+          echo "notes_path=release_notes.md" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.NEW_VERSION }}
+          name: v${{ env.NEW_VERSION }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+
       # --- Docker Build & Publish Steps (Same as docker-publish.yml) ---
 
       - name: Set up QEMU

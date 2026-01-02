@@ -12,8 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs"
 import { SettingsProvider } from "./components/SettingsContext"
 import { SettingsDialog } from "./components/SettingsDialog"
+import ReleaseNotesDialog from "./components/ReleaseNotesDialog"
 import { RefillModal } from "./components/RefillModal"
-import { Settings, Pill } from "lucide-react"
+import { Settings, Pill, FileText } from "lucide-react"
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/AuthPage';
@@ -26,10 +27,20 @@ function Dashboard() {
     const [editingId, setEditingId] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
     const [isRefillOpen, setIsRefillOpen] = useState(false);
 
     useEffect(() => {
         if (token) {
+            // Check for update
+            const lastSeenVersion = localStorage.getItem('lastSeenVersion');
+            const currentVersion = __APP_VERSION__;
+
+            if (currentVersion && lastSeenVersion !== currentVersion) {
+                setIsReleaseNotesOpen(true);
+                localStorage.setItem('lastSeenVersion', currentVersion);
+            }
+
             fetch('/api/supplements', {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
@@ -192,6 +203,14 @@ function Dashboard() {
                         >
                             <Settings size={16} className="sm:size-[18px]" />
                         </button>
+                        <button
+                            onClick={() => setIsReleaseNotesOpen(true)}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                            aria-label="Release Notes"
+                            title="Release Notes"
+                        >
+                            <FileText size={16} className="sm:size-[18px]" />
+                        </button>
                         <div className="h-4 w-[1px] bg-border mx-0.5 sm:mx-1" />
                         <ModeToggle />
                         <button
@@ -223,6 +242,7 @@ function Dashboard() {
                         </DialogContent>
                     </Dialog>
                     <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+                    <ReleaseNotesDialog open={isReleaseNotesOpen} onOpenChange={setIsReleaseNotesOpen} />
                     <RefillModal open={isRefillOpen} onOpenChange={setIsRefillOpen} supplements={supplements} />
                 </div>
             </header>
