@@ -6,6 +6,7 @@ import AddSupplementForm from './components/AddSupplementForm';
 import DailyVisualization from './components/DailyVisualization';
 import CostOverview from './components/CostOverview';
 const StackAnalysis = lazy(() => import('./components/StackAnalysis'));
+const StackOptimizer = lazy(() => import('./components/StackOptimizer'));
 import { ThemeProvider } from "./components/theme-provider"
 import { ModeToggle } from "./components/mode-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog"
@@ -373,6 +374,9 @@ function Dashboard() {
                     <CostOverview supplements={activeSupplements} />
                     <Suspense fallback={<div className="text-center py-4 text-muted-foreground">Loading analysis...</div>}>
                         <StackAnalysis supplements={activeSupplements} />
+                    </Suspense>
+                    <Suspense fallback={<div className="text-center py-4 text-muted-foreground">Loading optimizer...</div>}>
+                        <StackOptimizer supplements={activeSupplements} onAddSupplement={addSupplement} />
                     </Suspense>
                 </div>
             </main>

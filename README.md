@@ -119,6 +119,7 @@ On first startup, a default admin user is created:
 - 🚀 PWA support for "Add to Home Screen" on iPhone/iPad
 - ℹ️ **Smart Tooltips**: Enhanced interface with informative tooltips for actions and features
 - 🩺 **Interaction Checker**: AI-powered safety check to identify potential negative interactions in your stack
+- 🧠 **Stack Optimizer**: AI-powered suggestions for missing cofactors and complementary supplements
 - 💾 **Data Backup & Restore**: Securely backup your database and restore it with a single click
 - 👤 **Single User Mode**: Optional mode to disable authentication for personal use or external auth
 - 🤖 AI-powered supplement analysis (optional)
@@ -129,6 +130,7 @@ OptiStack includes optional AI-powered features for analyzing supplements and yo
 
 - **Supplement Analysis**: Get AI-generated summaries, recommended dosages, side effects, and optimal timing
 - **Stack Analysis**: Analyze your entire supplement protocol for synergies, benefits, and potential interactions
+- **Stack Optimizer**: Get proactive recommendations for missing cofactors and complementary supplements (e.g., K2 with D3, Copper with Zinc)
 
 AI features are **disabled by default** and will only appear in the UI when you provide an OpenRouter API key:
 

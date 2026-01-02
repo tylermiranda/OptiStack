@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0] - 2026-01-02
+### Added
+- **Stack Optimizer**: New AI-powered feature that analyzes your current stack and suggests missing cofactors and complementary supplements. Recommendations can be added directly to your stack with one click.
+
+## [1.5.2] - 2026-01-02
+### Fixed
+- **URL Auto-Fix**: Amazon product URLs pasted without `https://` are now automatically normalized, preventing fetch errors.
+
 ## [1.5.0] - 2026-01-02
 ### Added
 - **Enhanced Doctor Export**: Updated the "Share with Doctor" feature to optionally include a full AI-generated safety analysis (interactions & summary) directly in the PDF report.
