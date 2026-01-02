@@ -1,5 +1,6 @@
 # Changelog
 
+
 ## [1.6.0] - 2026-01-02
 ### Added
 - **Stack Optimizer**: New AI-powered feature that analyzes your current stack and suggests missing cofactors and complementary supplements. Recommendations can be added directly to your stack with one click.
