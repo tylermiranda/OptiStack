@@ -1,0 +1,301 @@
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { Sparkles, LayoutGrid, Plus, LogOut, Shield } from 'lucide-react';
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+import SupplementCard from './components/SupplementCard';
+import AddSupplementForm from './components/AddSupplementForm';
+import DailyVisualization from './components/DailyVisualization';
+const StackAnalysis = lazy(() => import('./components/StackAnalysis'));
+import { ThemeProvider } from "./components/theme-provider"
+import { ModeToggle } from "./components/mode-toggle"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog"
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs"
+import { SettingsProvider } from "./components/SettingsContext"
+import { SettingsDialog } from "./components/SettingsDialog"
+import { RefillModal } from "./components/RefillModal"
+import { Settings, Pill } from "lucide-react"
+
+import { AuthProvider, useAuth } from './context/AuthContext';
+import AuthPage from './components/AuthPage';
+
+function Dashboard() {
+    const { user, token, logout } = useAuth();
+    const [supplements, setSupplements] = useState([]);
+    const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'admin'
+
+    const [editingId, setEditingId] = useState(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isRefillOpen, setIsRefillOpen] = useState(false);
+
+    useEffect(() => {
+        if (token) {
+            fetch('/api/supplements', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(res => {
+                    if (res.status === 401 || res.status === 403) logout();
+                    return res.json();
+                })
+                .then(data => {
+                    if (Array.isArray(data)) setSupplements(data);
+                })
+                .catch(err => console.error("Failed to fetch supplements", err));
+        }
+    }, [token, logout]);
+
+    const addSupplement = async (supplement) => {
+        try {
+            const res = await fetch('/api/supplements', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(supplement)
+            });
+            if (res.ok) {
+                const newSup = await res.json();
+                setSupplements([newSup, ...supplements]);
+                setIsDialogOpen(false);
+            }
+        } catch (error) {
+            console.error("Failed to add supplement", error);
+        }
+    };
+
+    const updateSupplement = async (updatedSupplement) => {
+        try {
+            const res = await fetch(`/api/supplements/${updatedSupplement.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updatedSupplement)
+            });
+            if (res.ok) {
+                const savedSup = await res.json();
+                setSupplements(supplements.map(s => s.id === savedSup.id ? savedSup : s));
+                setEditingId(null);
+                setIsDialogOpen(false);
+            }
+        } catch (error) {
+            console.error("Failed to update supplement", error);
+        }
+    };
+
+    const deleteSupplement = async (id) => {
+        try {
+            const res = await fetch(`/api/supplements/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setSupplements(supplements.filter(s => s.id !== id));
+                if (editingId === id) {
+                    setEditingId(null);
+                    setIsDialogOpen(false);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to delete supplement", error);
+        }
+    };
+
+    const toggleArchive = async (id) => {
+        const sup = supplements.find(s => s.id === id);
+        if (sup) {
+            await updateSupplement({ ...sup, archived: !sup.archived });
+        }
+    };
+
+    const startEditing = (id) => {
+        setEditingId(id);
+        setIsDialogOpen(true);
+    };
+
+    const cancelEditing = () => {
+        setEditingId(null);
+        setIsDialogOpen(false);
+    };
+
+    const onOpenChange = (open) => {
+        setIsDialogOpen(open);
+        if (!open) setEditingId(null);
+    }
+
+    const editingSupplement = supplements.find(s => s.id === editingId);
+
+    // Filter lists
+    const activeSupplements = supplements.filter(s => !s.archived);
+    const archivedSupplements = supplements.filter(s => s.archived);
+
+    if (!user) {
+        return <AuthPage />;
+    }
+
+    if (currentView === 'admin') {
+        return (
+            <div className="container mx-auto px-4 py-8 max-w-4xl text-foreground bg-background min-h-screen transition-colors duration-300">
+                <button
+                    onClick={() => setCurrentView('dashboard')}
+                    className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-primary"
+                >
+                    &larr; Back to Dashboard
+                </button>
+                <Suspense fallback={<div className="text-center py-8 text-muted-foreground">Loading...</div>}>
+                    <AdminDashboard />
+                </Suspense>
+            </div>
+        );
+    }
+
+    return (
+        <div className="container mx-auto px-4 py-8 max-w-4xl text-foreground bg-background min-h-screen transition-colors duration-300">
+            <header className="mb-12 pt-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="bg-primary text-primary-foreground p-3 rounded-lg shadow-lg shadow-primary/20">
+                        <Sparkles size={24} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-primary">
+                            OptiStack
+                        </h1>
+                        <p className="text-muted-foreground text-sm font-medium">Supplement Manager</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    {!!user.is_admin && (
+                        <button
+                            onClick={() => setCurrentView('admin')}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
+                            aria-label="Admin"
+                            title="Admin Dashboard"
+                        >
+                            <Shield size={20} />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setIsRefillOpen(true)}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
+                        aria-label="Refill Assistant"
+                        title="Refill Assistant"
+                    >
+                        <Pill size={20} />
+                    </button>
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
+                        aria-label="Settings"
+                    >
+                        <Settings size={20} />
+                    </button>
+                    <ModeToggle />
+                    <button
+                        onClick={logout}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-10 w-10 text-muted-foreground"
+                        aria-label="Logout"
+                        title="Logout"
+                    >
+                        <LogOut size={20} />
+                    </button>
+                    <Dialog open={isDialogOpen} onOpenChange={onOpenChange}>
+                        <DialogTrigger asChild>
+                            <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
+                                <Plus className="mr-2 h-4 w-4" /> Add Supplement
+                            </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>{editingId ? 'Edit Supplement' : 'Add New Supplement'}</DialogTitle>
+                            </DialogHeader>
+                            <AddSupplementForm
+                                onAdd={addSupplement}
+                                onUpdate={updateSupplement}
+                                onCancel={cancelEditing}
+                                initialData={editingSupplement}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                    <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+                    <RefillModal open={isRefillOpen} onOpenChange={setIsRefillOpen} supplements={supplements} />
+                </div>
+            </header>
+
+            <main className="space-y-12">
+                <Tabs defaultValue="active" className="w-full">
+                    <div className="flex items-center justify-between border-b pb-4 mb-6">
+                        <h2 className="text-xl font-semibold tracking-tight">My Stack</h2>
+                        <TabsList>
+                            <TabsTrigger value="active">Active ({activeSupplements.length})</TabsTrigger>
+                            <TabsTrigger value="archived">Archived ({archivedSupplements.length})</TabsTrigger>
+                        </TabsList>
+                    </div>
+
+                    <TabsContent value="active" className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {activeSupplements.length === 0 ? (
+                                <div className="col-span-full bg-card border rounded-xl p-12 text-center text-muted-foreground shadow-sm">
+                                    <p className="font-medium">Your active stack is empty.</p>
+                                    <p className="text-sm mt-2">Add a supplement to get started.</p>
+                                </div>
+                            ) : (
+                                activeSupplements.map(sup => (
+                                    <SupplementCard
+                                        key={sup.id}
+                                        supplement={sup}
+                                        onDelete={deleteSupplement}
+                                        onEdit={startEditing}
+                                        onArchive={toggleArchive}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="archived" className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {archivedSupplements.length === 0 ? (
+                                <div className="col-span-full py-12 text-center text-muted-foreground">
+                                    <p className="font-medium">No archived supplements.</p>
+                                </div>
+                            ) : (
+                                archivedSupplements.map(sup => (
+                                    <SupplementCard
+                                        key={sup.id}
+                                        supplement={sup}
+                                        onDelete={deleteSupplement}
+                                        onEdit={startEditing}
+                                        onArchive={toggleArchive}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </TabsContent>
+                </Tabs>
+
+                <div className="mt-16 space-y-12">
+                    <DailyVisualization supplements={activeSupplements} />
+                    <Suspense fallback={<div className="text-center py-4 text-muted-foreground">Loading analysis...</div>}>
+                        <StackAnalysis supplements={activeSupplements} />
+                    </Suspense>
+                </div>
+            </main>
+        </div>
+    );
+}
+
+function App() {
+    return (
+        <SettingsProvider>
+            <AuthProvider>
+                <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+                    <Dashboard />
+                </ThemeProvider>
+            </AuthProvider>
+        </SettingsProvider>
+    );
+}
+
+export default App;
