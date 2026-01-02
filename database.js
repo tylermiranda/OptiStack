@@ -91,6 +91,12 @@ function initDb() {
                             console.log('Migrating database: Adding quantity column to supplements...');
                             db.run("ALTER TABLE supplements ADD COLUMN quantity INTEGER");
                         }
+
+                        const hasUnitType = rows.some(r => r.name === 'unit_type');
+                        if (!hasUnitType) {
+                            console.log('Migrating database: Adding unit_type column to supplements...');
+                            db.run("ALTER TABLE supplements ADD COLUMN unit_type TEXT DEFAULT 'pills'");
+                        }
                     }
                 });
 

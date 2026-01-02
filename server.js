@@ -501,12 +501,35 @@ app.get('/api/scrape', authenticateToken, async (req, res) => {
             dosage = dosageMatch[0];
         }
 
-        // Extract Quantity/Count Strategy
+        // Initialize quantity
         let quantity = null;
+
+        // Extract Unit Type Strategy
+        let unitType = 'pills'; // default
+        const weightRegex = /(\d+)\s*(?:g|grams)\b/i; // Detect grams
+        const liquidRegex = /(\d+)\s*(?:ml|milliliters)\b/i; // Detect ml
+        const powderRegex = /(?:powder|bulk)/i;
+
+        if (weightRegex.test(title) || (powderRegex.test(title) && !/capsules|softgels|tablets|pills/i.test(title))) {
+            unitType = 'grams';
+            // Try to set quantity from weight if not set by count
+            const weightMatch = title.match(weightRegex);
+            if (weightMatch && !quantity) {
+                quantity = parseInt(weightMatch[1], 10);
+            }
+        } else if (liquidRegex.test(title)) {
+            unitType = 'ml';
+            const liquidMatch = title.match(liquidRegex);
+            if (liquidMatch && !quantity) {
+                quantity = parseInt(liquidMatch[1], 10);
+            }
+        }
+
+        // Extract Quantity/Count Strategy
         // Look for patterns like "120 Count", "90 Capsules", "60 Softgels"
         const quantityRegex = /(\d+)\s*(?:Count|Capsules|Softgels|Tablets|Veggie\s*Caps|Gummies|Servings)/i;
         const quantityMatch = title.match(quantityRegex);
-        if (quantityMatch) {
+        if (quantityMatch && !quantity) {
             quantity = parseInt(quantityMatch[1], 10);
         }
 
@@ -518,7 +541,8 @@ app.get('/api/scrape', authenticateToken, async (req, res) => {
             name: title,
             price: price,
             dosage: dosage,
-            quantity: quantity
+            quantity: quantity,
+            unitType: unitType
         });
 
     } catch (error) {
@@ -542,7 +566,9 @@ app.get('/api/supplements', authenticateToken, (req, res) => {
             shortName: s.short_name,
             link: s.link,
             price: s.price,
+            price: s.price,
             quantity: s.quantity,
+            unitType: s.unit_type || 'pills',
             dosage: s.dosage,
             schedule: {
                 am: !!s.schedule_am,
@@ -565,11 +591,11 @@ app.get('/api/supplements', authenticateToken, (req, res) => {
 app.post('/api/supplements', authenticateToken, (req, res) => {
     const s = req.body;
     db.run(`INSERT INTO supplements (
-        user_id, name, short_name, link, price, quantity, dosage, 
+        user_id, name, short_name, link, price, quantity, dosage, unit_type,
         schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
         reason, ai_analysis, recommended_dosage, side_effects, rating, archived
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-        req.user.id, s.name, s.shortName, s.link, s.price, s.quantity, s.dosage,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        req.user.id, s.name, s.shortName, s.link, s.price, s.quantity, s.dosage, s.unitType || 'pills',
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0
     ], function (err) {
@@ -583,11 +609,11 @@ app.put('/api/supplements/:id', authenticateToken, (req, res) => {
     const s = req.body;
     const id = req.params.id;
     db.run(`UPDATE supplements SET 
-        name = ?, short_name = ?, link = ?, price = ?, quantity = ?, dosage = ?, 
+        name = ?, short_name = ?, link = ?, price = ?, quantity = ?, dosage = ?, unit_type = ?,
         schedule_am = ?, schedule_pm = ?, schedule_am_pills = ?, schedule_pm_pills = ?,
         reason = ?, ai_analysis = ?, recommended_dosage = ?, side_effects = ?, rating = ?, archived = ?
         WHERE id = ? AND user_id = ?`, [
-        s.name, s.shortName, s.link, s.price, s.quantity, s.dosage,
+        s.name, s.shortName, s.link, s.price, s.quantity, s.dosage, s.unitType || 'pills',
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, s.archived ? 1 : 0,
         id, req.user.id
