@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { Sparkles, LayoutGrid, Plus, LogOut, Shield } from 'lucide-react';
+import { Sparkles, LayoutGrid, Plus, LogOut, Shield, Share2 } from 'lucide-react';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 import SupplementCard from './components/SupplementCard';
 import AddSupplementForm from './components/AddSupplementForm';
@@ -15,14 +15,16 @@ import { SettingsProvider } from "./components/SettingsContext"
 import { SettingsDialog } from "./components/SettingsDialog"
 import ReleaseNotesDialog from "./components/ReleaseNotesDialog"
 import { RefillModal } from "./components/RefillModal"
-import { Settings, Pill, FileText } from "lucide-react"
+import ShareStackDialog from "./components/ShareStackDialog"
+import { Settings, Pill, FileText, Stethoscope } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip"
+import { InteractionChecker } from "./components/InteractionChecker"
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/AuthPage';
 
 function Dashboard() {
-    const { user, token, logout } = useAuth();
+    const { user, token, logout, isAuthDisabled } = useAuth();
     const [supplements, setSupplements] = useState([]);
     const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'admin'
 
@@ -31,6 +33,8 @@ function Dashboard() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
     const [isRefillOpen, setIsRefillOpen] = useState(false);
+    const [isShareOpen, setIsShareOpen] = useState(false);
+    const [isInteractionOpen, setIsInteractionOpen] = useState(false);
 
     useEffect(() => {
         if (token) {
@@ -175,7 +179,7 @@ function Dashboard() {
                         <h1 className="text-2xl font-bold tracking-tight text-primary">
                             OptiStack
                         </h1>
-                        <p className="text-muted-foreground text-sm font-medium">Supplement Manager</p>
+                        <p className="text-muted-foreground text-sm font-medium">Supplement & Medication Manager</p>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full sm:w-auto">
@@ -213,6 +217,20 @@ function Dashboard() {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
+                                    onClick={() => setIsInteractionOpen(true)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Safety Check"
+                                >
+                                    <Stethoscope size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Interaction Checker</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
                                     onClick={() => setIsSettingsOpen(true)}
                                     className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
                                     aria-label="Settings"
@@ -222,6 +240,20 @@ function Dashboard() {
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Settings</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setIsShareOpen(true)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Share Stack"
+                                >
+                                    <Share2 size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Share with Doctor</p>
                             </TooltipContent>
                         </Tooltip>
                         <Tooltip>
@@ -240,20 +272,22 @@ function Dashboard() {
                         </Tooltip>
                         <div className="h-4 w-[1px] bg-border mx-0.5 sm:mx-1" />
                         <ModeToggle />
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={logout}
-                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                                    aria-label="Logout"
-                                >
-                                    <LogOut size={16} className="sm:size-[18px]" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Logout</p>
-                            </TooltipContent>
-                        </Tooltip>
+                        {!isAuthDisabled && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={logout}
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                        aria-label="Logout"
+                                    >
+                                        <LogOut size={16} className="sm:size-[18px]" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Logout</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
                     </div>
 
                     <Dialog open={isDialogOpen} onOpenChange={onOpenChange}>
@@ -277,6 +311,8 @@ function Dashboard() {
                     <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
                     <ReleaseNotesDialog open={isReleaseNotesOpen} onOpenChange={setIsReleaseNotesOpen} />
                     <RefillModal open={isRefillOpen} onOpenChange={setIsRefillOpen} supplements={supplements} />
+                    <InteractionChecker open={isInteractionOpen} onOpenChange={setIsInteractionOpen} supplements={supplements} />
+                    <ShareStackDialog open={isShareOpen} onOpenChange={setIsShareOpen} supplements={supplements} />
                 </div>
             </header>
 

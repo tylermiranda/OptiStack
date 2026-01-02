@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Shield, ShieldAlert, ShieldCheck, Save, Users, Settings } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, Save, Users, Settings, Database } from 'lucide-react';
 import { Alert, AlertDescription } from "./ui/alert";
 
 const AdminDashboard = () => {
@@ -111,6 +111,7 @@ const AdminDashboard = () => {
                 <TabsList>
                     <TabsTrigger value="users" className="flex gap-2"><Users size={16} /> User Management</TabsTrigger>
                     <TabsTrigger value="settings" className="flex gap-2"><Settings size={16} /> OIDC Configuration</TabsTrigger>
+                    <TabsTrigger value="maintenance" className="flex gap-2"><Database size={16} /> Maintenance</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="users">
@@ -260,7 +261,126 @@ const AdminDashboard = () => {
                         </form>
                     </div>
                 </TabsContent>
+
+                <TabsContent value="maintenance">
+                    <MaintenanceTab token={token} />
+                </TabsContent>
             </Tabs>
+        </div>
+    );
+};
+
+const MaintenanceTab = ({ token }) => {
+    const [restoring, setRestoring] = useState(false);
+    const [file, setFile] = useState(null);
+
+    const handleDownload = async () => {
+        try {
+            const res = await fetch('/api/admin/backup', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `optistack_backup_${new Date().toISOString().split('T')[0]}.db`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            } else {
+                alert("Failed to download backup");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error downloading backup");
+        }
+    };
+
+    const handleRestore = async () => {
+        if (!file) return;
+        if (!window.confirm("WARNING: This will overwrite the current database with the uploaded file. All current data will be replaced. The server will restart. Are you sure?")) {
+            return;
+        }
+
+        setRestoring(true);
+        const formData = new FormData();
+        formData.append('backup', file);
+
+        try {
+            const res = await fetch('/api/admin/restore', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (res.ok) {
+                alert("Restore successful. The application will now reload.");
+                // Wait for server restart
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            } else {
+                const data = await res.json();
+                alert(`Restore failed: ${data.error}`);
+                setRestoring(false);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error calling restore endpoint");
+            setRestoring(false);
+        }
+    };
+
+    return (
+        <div className="rounded-md border bg-card p-6">
+            <div className="mb-8">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Save className="h-5 w-5" /> Data Backup
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">
+                    Download a full copy of your database. Keep this file safe as it contains all user data.
+                </p>
+                <button
+                    onClick={handleDownload}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                >
+                    Download Backup (.db)
+                </button>
+            </div>
+
+            <div className="pt-8 border-t">
+                <h2 className="text-lg font-semibold flex items-center gap-2 text-destructive">
+                    <ShieldAlert className="h-5 w-5" /> Data Restore
+                </h2>
+                <Alert variant="destructive" className="mt-4 mb-6 border-destructive/50 bg-destructive/10 text-destructive dark:text-red-400">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertDescription>
+                        <strong>Danger Zone:</strong> Restoring a backup will <u>completely overwrite</u> the current database. This action cannot be undone.
+                    </AlertDescription>
+                </Alert>
+
+                <div className="grid gap-4 max-w-xl">
+                    <div className="grid gap-2">
+                        <label className="text-sm font-medium">Select Backup File</label>
+                        <input
+                            type="file"
+                            accept=".db,.sqlite"
+                            onChange={e => setFile(e.target.files[0])}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                    </div>
+
+                    <button
+                        onClick={handleRestore}
+                        disabled={!file || restoring}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-10 px-4 py-2 w-fit"
+                    >
+                        {restoring ? 'Restoring...' : 'Restore Database'}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };

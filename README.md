@@ -1,6 +1,6 @@
-# OptiStack Supplement Manager
+# OptiStack Supplement & Medication Manager
 
-A Docker-deployable web application for managing your supplement stack with scheduling, tracking, and OIDC authentication support.
+A Docker-deployable web application for managing your supplement and medication stack with seeking, tracking, and OIDC authentication support.
 
 <details>
 <summary>📸 Screenshots</summary>
@@ -104,6 +104,7 @@ On first startup, a default admin user is created:
 | `OIDC_CLIENT_ID` | ❌ | - | OIDC client ID |
 | `OIDC_CLIENT_SECRET` | ❌ | - | OIDC client secret |
 | `OIDC_CALLBACK_URL` | ❌ | `http://localhost:3000/auth/callback` | OIDC callback URL |
+| `DISABLE_AUTH` | ❌ | `false` | Set to `true` to completely disable authentication (Single User Mode). **WARNING: Bypasses all login security.** |
 
 *If `ADMIN_PASSWORD` is not set, the first user to register will become admin.
 
@@ -111,9 +112,13 @@ On first startup, a default admin user is created:
 
 - 🔐 Admin dashboard for user and settings management
 - 💊 Weekly Refill Assistant: Interactive checklist for easy pill organizer filling
+- 📄 **Share with Doctor**: Export your daily supplement protocol to a professional PDF
 - 📱 Mobile-optimized UI with safe-area support for iOS
 - 🚀 PWA support for "Add to Home Screen" on iPhone/iPad
 - ℹ️ **Smart Tooltips**: Enhanced interface with informative tooltips for actions and features
+- 🩺 **Interaction Checker**: AI-powered safety check to identify potential negative interactions in your stack
+- 💾 **Data Backup & Restore**: Securely backup your database and restore it with a single click
+- 👤 **Single User Mode**: Optional mode to disable authentication for personal use or external auth
 - 🤖 AI-powered supplement analysis (optional)
 
 ## AI Features (Optional)

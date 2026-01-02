@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0] - 2026-01-02
+### Added
+- **Data Backup & Restore**: Added ability for admins to download database backups and restore them directly from the Admin Dashboard.
+- **Cost Analysis**: New dashboard widget providing daily and monthly cost breakdowns of your current stack.
+- **Interaction Checker**: Added a safety check tool to analyze your stack for potential negative interactions using AI.
+- **Single User Mode**: New `DISABLE_AUTH` environment variable to bypass login for personal use.
+- **Branding**: Updated application branding to "Supplement & Medication Manager".
+
 ## [1.1.1] - 2026-01-02
 ### Added
 - **Tooltips**: Integrated informative tooltips for buttons, icons, and form fields to improve user experience.
