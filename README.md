@@ -5,29 +5,24 @@ A Docker-deployable web application for managing your supplement and medication 
 <details>
 <summary>📸 Screenshots</summary>
 
-### Dashboard
-
-**Desktop**
-
-![Desktop Dashboard](public/screenshots/SCR-20260101-rnfu.png)
-
-**Mobile**
-
-<p align="center">
-  <img src="public/screenshots/SCR-20260101-rnon.png" width="300" alt="Mobile Dashboard">
-</p>
-
-### Add Supplement Form
-
-**Desktop**
-
-![Add Supplement Desktop](public/screenshots/SCR-20260101-rnur.png)
-
-**Mobile**
-
-<p align="center">
-  <img src="public/screenshots/SCR-20260101-rnww.png" width="300" alt="Add Supplement Mobile">
-</p>
+<table border="0">
+  <tr>
+    <td><img src="public/screenshots/SCR-20260102-nnet.png"></td>
+    <td><img src="public/screenshots/SCR-20260102-nnib.png"></td>
+  </tr>
+  <tr>
+    <td><img src="public/screenshots/SCR-20260102-nnod.png"></td>
+    <td><img src="public/screenshots/SCR-20260102-nnrp.png"></td>
+  </tr>
+  <tr>
+    <td><img src="public/screenshots/SCR-20260102-nnvd.png"></td>
+    <td><img src="public/screenshots/SCR-20260102-nnzq.png"></td>
+  </tr>
+  <tr>
+    <td><img src="public/screenshots/SCR-20260102-nodo.png"></td>
+    <td></td>
+  </tr>
+</table>
 
 </details>
 
