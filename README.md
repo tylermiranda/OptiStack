@@ -33,12 +33,40 @@ A Docker-deployable web application for managing your supplement stack with sche
 
 ## Quick Start
 
-### 1. Clone and Configure
+### Option A: Quick Deploy (Recommended)
+
+Run OptiStack directly from GitHub Container Registry — no clone required:
 
 ```bash
-# Copy the example environment file
+# Download the production compose file and example environment
+curl -O https://raw.githubusercontent.com/tylermiranda/OptiStack/main/docker-compose.production.yml
+curl -O https://raw.githubusercontent.com/tylermiranda/OptiStack/main/.env.example
+
+# Create your .env file
 cp .env.example .env
+# Edit .env with your settings (see Required Secrets below)
+
+# Run OptiStack
+docker compose -f docker-compose.production.yml up -d
 ```
+
+The application will be available at `http://localhost:3000`
+
+---
+
+### Option B: Clone and Build Locally
+
+```bash
+git clone https://github.com/tylermiranda/OptiStack.git
+cd OptiStack
+cp .env.example .env
+# Edit .env with your settings
+docker compose up -d
+```
+
+---
+
+### Configuration
 
 Edit `.env` with your configuration:
 
@@ -53,15 +81,7 @@ openssl rand -base64 48
 
 **Admin user** — Set `ADMIN_PASSWORD` for the default admin account (username defaults to `admin`).
 
-### 2. Run with Docker
-
-```bash
-docker compose up -d
-```
-
-The application will be available at `http://localhost:3000`
-
-### 3. Login
+### Login
 
 On first startup, a default admin user is created:
 - **Username:** `admin` (or value of `ADMIN_USERNAME`)

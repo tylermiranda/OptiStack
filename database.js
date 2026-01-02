@@ -6,7 +6,9 @@ import bcrypt from 'bcrypt';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, 'supplements.db');
+// Use DATA_PATH env var if set (for Docker), otherwise use current directory
+const dataDir = process.env.DATA_PATH || __dirname;
+const dbPath = path.join(dataDir, 'supplements.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {

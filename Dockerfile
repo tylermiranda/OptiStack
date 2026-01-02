@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    DATA_PATH=/app/data
 
 # Copy package files and install ALL dependencies once
 COPY package*.json ./
@@ -17,6 +18,9 @@ RUN npm ci
 # Copy source and build frontend
 COPY . .
 RUN npm run build
+
+# Create data directory for persistent storage
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 
