@@ -439,10 +439,15 @@ app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
 
 // Scrape Endpoint
 app.get('/api/scrape', authenticateToken, async (req, res) => {
-    const { url } = req.query;
+    let { url } = req.query;
 
     if (!url) {
         return res.status(400).json({ error: 'URL is required' });
+    }
+
+    // Normalize URL: add https:// if missing protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
     }
 
     let page = null;
