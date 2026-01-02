@@ -113,6 +113,7 @@ On first startup, a default admin user is created:
 - 💊 Weekly Refill Assistant: Interactive checklist for easy pill organizer filling
 - 📱 Mobile-optimized UI with safe-area support for iOS
 - 🚀 PWA support for "Add to Home Screen" on iPhone/iPad
+- ℹ️ **Smart Tooltips**: Enhanced interface with informative tooltips for actions and features
 - 🤖 AI-powered supplement analysis (optional)
 
 ## AI Features (Optional)

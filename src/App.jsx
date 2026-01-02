@@ -15,6 +15,7 @@ import { SettingsDialog } from "./components/SettingsDialog"
 import ReleaseNotesDialog from "./components/ReleaseNotesDialog"
 import { RefillModal } from "./components/RefillModal"
 import { Settings, Pill, FileText } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip"
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/AuthPage';
@@ -179,48 +180,79 @@ function Dashboard() {
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full sm:w-auto">
                     <div className="flex items-center gap-0.5 sm:gap-1 bg-muted/50 p-1 rounded-lg shrink-0">
                         {!!user.is_admin && (
-                            <button
-                                onClick={() => setCurrentView('admin')}
-                                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                                aria-label="Admin"
-                                title="Admin Dashboard"
-                            >
-                                <Shield size={16} className="sm:size-[18px]" />
-                            </button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => setCurrentView('admin')}
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                        aria-label="Admin"
+                                    >
+                                        <Shield size={16} className="sm:size-[18px]" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Admin Dashboard</p>
+                                </TooltipContent>
+                            </Tooltip>
                         )}
-                        <button
-                            onClick={() => setIsRefillOpen(true)}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                            aria-label="Refill Assistant"
-                            title="Refill Assistant"
-                        >
-                            <Pill size={16} className="sm:size-[18px]" />
-                        </button>
-                        <button
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                            aria-label="Settings"
-                        >
-                            <Settings size={16} className="sm:size-[18px]" />
-                        </button>
-                        <button
-                            onClick={() => setIsReleaseNotesOpen(true)}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                            aria-label="Release Notes"
-                            title="Release Notes"
-                        >
-                            <FileText size={16} className="sm:size-[18px]" />
-                        </button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setIsRefillOpen(true)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Refill Assistant"
+                                >
+                                    <Pill size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Refill Assistant</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Settings"
+                                >
+                                    <Settings size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Settings</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setIsReleaseNotesOpen(true)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Release Notes"
+                                >
+                                    <FileText size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Release Notes</p>
+                            </TooltipContent>
+                        </Tooltip>
                         <div className="h-4 w-[1px] bg-border mx-0.5 sm:mx-1" />
                         <ModeToggle />
-                        <button
-                            onClick={logout}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                            aria-label="Logout"
-                            title="Logout"
-                        >
-                            <LogOut size={16} className="sm:size-[18px]" />
-                        </button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={logout}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Logout"
+                                >
+                                    <LogOut size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Logout</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
 
                     <Dialog open={isDialogOpen} onOpenChange={onOpenChange}>
@@ -315,7 +347,9 @@ function App() {
         <SettingsProvider>
             <AuthProvider>
                 <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-                    <Dashboard />
+                    <TooltipProvider>
+                        <Dashboard />
+                    </TooltipProvider>
                 </ThemeProvider>
             </AuthProvider>
         </SettingsProvider>

@@ -1,0 +1,17 @@
+{
+    "name": "OptiStack - Supplement Manager",
+    "short_name": "OptiStack",
+    "description": "Streamline your supplement routine with AI-powered analysis and tracking.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0a",
+    "theme_color": "#0a0a0a",
+    "icons": [
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
+}
