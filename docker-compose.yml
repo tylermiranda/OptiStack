@@ -4,11 +4,11 @@ services:
   web:
     build: .
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     environment:
-      - PORT=3000
-      - FRONTEND_URL=http://localhost:3000
-      - OIDC_CALLBACK_URL=http://localhost:3000/auth/callback
+      - PORT=${PORT:-3000}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:${PORT:-3000}}
+      - OIDC_CALLBACK_URL=${OIDC_CALLBACK_URL:-http://localhost:${PORT:-3000}/auth/callback}
       # Pass through OIDC secrets from host .env
       - OIDC_ISSUER
       - OIDC_AUTH_URL

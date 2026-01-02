@@ -16,8 +16,8 @@ export default defineConfig({
         host: true,
         port: 5173,
         proxy: {
-            '/api': 'http://localhost:3000',
-            '/auth': 'http://localhost:3000'
+            '/api': `http://localhost:${process.env.PORT || 3000}`,
+            '/auth': `http://localhost:${process.env.PORT || 3000}`
         }
     }
 })

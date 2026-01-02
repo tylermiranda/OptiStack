@@ -13,19 +13,19 @@ services:
     image: ghcr.io/tylermiranda/optistack:latest
     container_name: optistack
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     env_file:
       - .env
     environment:
-      - PORT=3000
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      - OIDC_CALLBACK_URL=${OIDC_CALLBACK_URL:-http://localhost:3000/auth/callback}
+      - PORT=${PORT:-3000}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:${PORT:-3000}}
+      - OIDC_CALLBACK_URL=${OIDC_CALLBACK_URL:-http://localhost:${PORT:-3000}/auth/callback}
     volumes:
       # Persist database across container restarts
       - optistack_data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${PORT:-3000}/" ]
       interval: 30s
       timeout: 10s
       retries: 3
