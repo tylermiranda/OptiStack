@@ -2,21 +2,34 @@
 
 A Docker-deployable web application for managing your supplement stack with scheduling, tracking, and OIDC authentication support.
 
-![Desktop Dashboard](public/screenshots/desktop_dashboard.png)
+<details>
+<summary>📸 Screenshots</summary>
+
+### Dashboard
+
+**Desktop**
+
+![Desktop Dashboard](public/screenshots/SCR-20260101-rnfu.png)
+
+**Mobile**
 
 <p align="center">
-  <img src="public/screenshots/mobile_dashboard.png" width="300" alt="Mobile Dashboard">
+  <img src="public/screenshots/SCR-20260101-rnon.png" width="300" alt="Mobile Dashboard">
 </p>
 
 ### Add Supplement Form
 
-Modern, intuitive form with AI-powered analysis and Amazon integration.
+**Desktop**
 
-![Add Supplement Desktop](public/screenshots/add_supplement_desktop.png)
+![Add Supplement Desktop](public/screenshots/SCR-20260101-rnur.png)
+
+**Mobile**
 
 <p align="center">
-  <img src="public/screenshots/add_supplement_mobile.png" width="300" alt="Add Supplement Mobile">
+  <img src="public/screenshots/SCR-20260101-rnww.png" width="300" alt="Add Supplement Mobile">
 </p>
+
+</details>
 
 ## Quick Start
 
