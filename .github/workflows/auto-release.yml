@@ -58,20 +58,17 @@ jobs:
 
       - name: Extract Release Notes
         id: notes
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          # Use the PR body as release notes
-          PR_BODY="${{ github.event.pull_request.body }}"
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          
           if [ -n "$PR_BODY" ]; then
-            echo "$PR_BODY" > release_notes.md
+            printf '%s' "$PR_BODY" > release_notes.md
           else
-            # Fallback to PR title if body is empty
             echo "### Changes" > release_notes.md
             echo "" >> release_notes.md
             echo "- $PR_TITLE" >> release_notes.md
           fi
-          echo "notes_path=release_notes.md" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
