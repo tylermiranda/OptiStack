@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, UserPlus, Globe } from 'lucide-react';
+import { LogIn, UserPlus, Globe, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription } from "./ui/alert";
 
 const AuthPage = () => {
@@ -45,6 +45,17 @@ const AuthPage = () => {
         <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
             <div className="w-full max-w-md space-y-8 bg-card p-8 rounded-xl border shadow-lg">
                 <div className="text-center">
+                    <div className="flex flex-col items-center gap-2 mb-6">
+                        <div className="bg-primary text-primary-foreground p-3 rounded-lg shadow-lg shadow-primary/20 inline-flex">
+                            <Sparkles size={24} />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight text-primary">
+                                OptiStack
+                            </h1>
+                            <p className="text-muted-foreground text-sm font-medium">Supplement Manager</p>
+                        </div>
+                    </div>
                     <h2 className="text-3xl font-bold tracking-tight">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
                     <p className="text-muted-foreground mt-2">
                         {isLogin ? 'Enter your credentials to access your stack' : 'Sign up to start tracking your supplements'}
