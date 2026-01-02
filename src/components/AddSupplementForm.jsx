@@ -13,6 +13,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         price: '',
         quantity: '',
         dosage: '',
+        unitType: 'pills',
         schedule: { am: false, pm: false, amPills: 1, pmPills: 1 },
         reason: '',
         aiAnalysis: '',
@@ -60,7 +61,8 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 name: data.name || prev.name,
                 price: data.price ? String(data.price) : prev.price,
                 dosage: data.dosage || prev.dosage,
-                quantity: data.quantity ? String(data.quantity) : prev.quantity
+                quantity: data.quantity ? String(data.quantity) : prev.quantity,
+                unitType: data.unitType || prev.unitType
             }));
         } catch (error) {
             console.error("Fetch failed:", error);
@@ -158,7 +160,8 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         const submissionData = {
             ...formData,
             price: parseFloat(formData.price) || 0,
-            quantity: formData.quantity ? parseInt(formData.quantity) : null,
+            quantity: formData.quantity ? parseFloat(formData.quantity) : null,
+            unitType: formData.unitType,
             rating: formData.rating ? parseInt(formData.rating) : 0
         };
 
@@ -219,26 +222,41 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                             />
                         </div>
                     </div>
+
                     <div>
                         <div className="flex items-center gap-1 mb-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Quantity</label>
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Quantity / Unit</label>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Info size={14} className="text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Total pills/servings in container</p>
+                                    <p>Total amount in container (count or weight)</p>
                                 </TooltipContent>
                             </Tooltip>
                         </div>
-                        <input
-                            type="number"
-                            min="1"
-                            className={inputClassName}
-                            value={formData.quantity}
-                            onChange={e => setFormData({ ...formData, quantity: e.target.value })}
-                            placeholder="e.g. 90"
-                        />
+                        <div className="flex gap-2">
+                            <input
+                                type="number"
+                                min="0.1"
+                                step="any"
+                                className={inputClassName}
+                                value={formData.quantity}
+                                onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+                                placeholder="e.g. 500"
+                            />
+                            <select
+                                className={`${inputClassName} w-[110px]`}
+                                value={formData.unitType}
+                                onChange={e => setFormData({ ...formData, unitType: e.target.value })}
+                            >
+                                <option value="pills">Pills</option>
+                                <option value="grams">Grams</option>
+                                <option value="mg">mg</option>
+                                <option value="ml">ml</option>
+                                <option value="oz">oz</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -332,12 +350,13 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 <div className="flex items-center gap-1">
                                     <input
                                         type="number"
-                                        min="1"
-                                        className={`${inputClassName} w-[60px] text-center px-1`}
+                                        min="0.1"
+                                        step="any"
+                                        className={`${inputClassName} w-[70px] text-center px-1`}
                                         value={formData.schedule?.amPills || 1}
-                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, amPills: parseInt(e.target.value) || 1 } })}
+                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, amPills: parseFloat(e.target.value) || 1 } })}
                                     />
-                                    <span className="text-xs text-muted-foreground">pills</span>
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formData.unitType === 'pills' ? 'pills' : formData.unitType}</span>
                                 </div>
                             )}
                         </div>
@@ -359,12 +378,13 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 <div className="flex items-center gap-1">
                                     <input
                                         type="number"
-                                        min="1"
-                                        className={`${inputClassName} w-[60px] text-center px-1`}
+                                        min="0.1"
+                                        step="any"
+                                        className={`${inputClassName} w-[70px] text-center px-1`}
                                         value={formData.schedule?.pmPills || 1}
-                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, pmPills: parseInt(e.target.value) || 1 } })}
+                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, pmPills: parseFloat(e.target.value) || 1 } })}
                                     />
-                                    <span className="text-xs text-muted-foreground">pills</span>
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formData.unitType === 'pills' ? 'pills' : formData.unitType}</span>
                                 </div>
                             )}
                         </div>
@@ -465,7 +485,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                     </button>
                 </div>
             </div>
-        </form>
+        </form >
     );
 };
 

@@ -115,12 +115,12 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
                             <div className="flex gap-2">
                                 {supplement.schedule?.am && (
                                     <div className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-600/20">
-                                        <Sun size={12} /> {supplement.schedule.amPills || 1}x AM
+                                        <Sun size={12} /> {supplement.schedule.amPills} {supplement.unitType === 'pills' ? 'pills' : supplement.unitType} AM
                                     </div>
                                 )}
                                 {supplement.schedule?.pm && (
                                     <div className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
-                                        <Moon size={12} /> {supplement.schedule.pmPills || 1}x PM
+                                        <Moon size={12} /> {supplement.schedule.pmPills} {supplement.unitType === 'pills' ? 'pills' : supplement.unitType} PM
                                     </div>
                                 )}
                             </div>

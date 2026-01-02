@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.0] - 2026-01-02
+### Added
+- **Volume-based Costing**: Added support for non-pill units (grams, ml, oz) with decimal dosage support and accurate cost tracking.
+
 ## [1.2.0] - 2026-01-02
 ### Added
 - **Data Backup & Restore**: Added ability for admins to download database backups and restore them directly from the Admin Dashboard.

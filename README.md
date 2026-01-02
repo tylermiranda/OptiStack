@@ -112,6 +112,7 @@ On first startup, a default admin user is created:
 
 - 🔐 Admin dashboard for user and settings management
 - 💊 Weekly Refill Assistant: Interactive checklist for easy pill organizer filling
+- ⚖️ **Volume-based Costing**: Support for supplements by weight (grams, oz) or volume (ml) with accurate cost-per-day calculations
 - 📄 **Share with Doctor**: Export your daily supplement protocol to a professional PDF
 - 📱 Mobile-optimized UI with safe-area support for iOS
 - 🚀 PWA support for "Add to Home Screen" on iPhone/iPad
