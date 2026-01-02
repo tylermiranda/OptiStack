@@ -187,7 +187,9 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
             )}
             <div className="space-y-5">
                 <div>
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">Supplement Name</label>
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">
+                        Supplement Name <span className="text-destructive">*</span>
+                    </label>
                     <input
                         type="text"
                         className={inputClassName}
@@ -210,7 +212,6 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 placeholder="0.00"
                                 value={formData.price}
                                 onChange={e => setFormData({ ...formData, price: e.target.value })}
-                                required
                             />
                         </div>
                     </div>
@@ -239,7 +240,6 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 placeholder="https://..."
                                 value={formData.link}
                                 onChange={e => setFormData({ ...formData, link: e.target.value })}
-                                required
                             />
                         </div>
                         <button
@@ -314,7 +314,9 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 </div>
 
                 <div>
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">Dosage</label>
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">
+                        Dosage <span className="text-destructive">*</span>
+                    </label>
                     <input
                         type="text"
                         className={inputClassName}
@@ -332,7 +334,6 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                         placeholder="Why are you taking this? e.g. Sleep quality"
                         value={formData.reason}
                         onChange={e => setFormData({ ...formData, reason: e.target.value })}
-                        required
                     />
                 </div>
 
