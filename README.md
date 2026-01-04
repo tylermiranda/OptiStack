@@ -35,10 +35,6 @@ I built OptiStack to help with this. I wanted something that felt personal and h
 <details>
 <summary>📸 Screenshots</summary>
 
-### Dashboard
-
-**Desktop**
-
 | | |
 |:---:|:---:|
 | <img src="public/screenshots/SCR-20260101-rnfu.png" width="400" /> | <img src="public/screenshots/SCR-20260104-pgsl.png" width="400" /> |
