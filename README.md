@@ -1,6 +1,10 @@
 # OptiStack Supplement & Medication Manager
 
-A Docker-deployable web application for managing your supplement and medication stack with seeking, tracking, and OIDC authentication support.
+**Stop managing your health in spreadsheets.** 
+
+OptiStack is a professional-grade, self-hosted platform designed for biohackers and health optimizers. It brings order to complex protocols with **AI-powered interaction analysis**, smart inventory tracking, precise timing schedules, and doctor-ready PDF reports. 
+
+Whether you're taking a daily multivitamin or managing a complex longevity protocol, OptiStack handles the cognitive load—tracking dosages, checking for contraindications, and helping you stay consistent—all in a privacy-first, Docker-deployable package.
 
 ## Why I Built This
 
