@@ -466,6 +466,17 @@ const createAIProvider = (config = {}) => {
     // Database settings take priority over environment variables
     const provider = (config.AI_PROVIDER || process.env.AI_PROVIDER || 'openrouter').toLowerCase();
 
+    // Handle "No AI" selection - always return unavailable
+    if (provider === 'none') {
+        return {
+            type: 'none',
+            defaultModel: null,
+            isAvailable: async () => false,
+            getModels: async () => [],
+            chat: async () => { throw new Error('AI is disabled'); }
+        };
+    }
+
     if (provider === 'ollama') {
         const ollamaUrl = config.OLLAMA_URL || process.env.OLLAMA_URL || 'http://localhost:11434';
         const defaultModel = config.OLLAMA_MODEL || process.env.OLLAMA_MODEL || 'llama3.1:8b';
@@ -551,7 +562,13 @@ const createAIProvider = (config = {}) => {
 
                     return {
                         content: data.message?.content || '',
-                        model: data.model
+                        model: data.model,
+                        usage: {
+                            prompt_tokens: 0,
+                            completion_tokens: 0,
+                            total_tokens: 0,
+                            cost: 0  // Local AI has no cost
+                        }
                     };
                 } catch (error) {
                     if (error.name === 'TimeoutError') {
@@ -571,24 +588,31 @@ const createAIProvider = (config = {}) => {
         type: 'openrouter',
         defaultModel: 'google/gemini-2.0-flash-001',
         isAvailable: async () => !!apiKey,
-        getModels: async () => [
-            // Free/Low Cost (recommended for most use cases)
-            { id: 'google/gemini-2.0-flash-001', name: '⭐ Gemini 2.0 Flash (Recommended)' },
-            { id: 'google/gemini-flash-1.5', name: 'Gemini 1.5 Flash' },
-            { id: 'google/gemini-2.0-flash-lite-preview-02-05:free', name: 'Gemini 2.0 Flash Lite (Free)' },
-            { id: 'meta-llama/llama-3.1-8b-instruct:free', name: 'Llama 3.1 8B (Free)' },
-            { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B (Free)' },
-            // Mid-tier
-            { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
-            { id: 'openai/gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
-            { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
-            { id: 'google/gemini-pro-1.5', name: 'Gemini 1.5 Pro' },
-            // Premium
-            { id: 'openai/gpt-4o', name: 'GPT-4o' },
-            { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
-            { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus' },
-            { id: 'google/gemini-2.0-pro-exp-02-05:free', name: 'Gemini 2.0 Pro (Experimental)' },
-        ],
+        getModels: async () => {
+            if (!apiKey) return [];
+            try {
+                const res = await fetch('https://openrouter.ai/api/v1/models', {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:5173',
+                        'X-Title': 'OptiStack'
+                    },
+                    signal: AbortSignal.timeout(10000)
+                });
+                if (!res.ok) return [];
+                const data = await res.json();
+
+                const models = (data.data || []).map(m => ({
+                    id: m.id,
+                    name: m.name || m.id
+                }));
+
+                return models.sort((a, b) => a.name.localeCompare(b.name));
+            } catch (e) {
+                console.error('[OpenRouter] Failed to fetch models:', e.message);
+                return [];
+            }
+        },
         chat: async (model, messages, options = {}) => {
             if (!apiKey) {
                 throw new Error('OPENROUTER_API_KEY is not configured');
@@ -604,7 +628,8 @@ const createAIProvider = (config = {}) => {
                 },
                 body: JSON.stringify({
                     model: model || 'google/gemini-2.0-flash-001',
-                    messages
+                    messages,
+                    usage: { include: true }  // Request usage data for cost tracking
                 })
             });
 
@@ -614,9 +639,18 @@ const createAIProvider = (config = {}) => {
                 throw new Error(data.error?.message || `OpenRouter returned status ${res.status}`);
             }
 
+            // Extract usage data from response
+            const usage = data.usage || {};
+
             return {
                 content: data.choices[0]?.message?.content || '',
-                model: data.model
+                model: data.model,
+                usage: {
+                    prompt_tokens: usage.prompt_tokens || 0,
+                    completion_tokens: usage.completion_tokens || 0,
+                    total_tokens: usage.total_tokens || 0,
+                    cost: usage.cost || 0
+                }
             };
         }
     };
@@ -628,6 +662,25 @@ const getAIProvider = async () => {
     return createAIProvider(settings);
 };
 
+// Helper to save AI usage for cost tracking
+const saveAIUsage = (userId, provider, model, usage, requestType) => {
+    db.run(`INSERT INTO ai_usage (user_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost_usd, request_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+        userId,
+        provider,
+        model || 'unknown',
+        usage?.prompt_tokens || 0,
+        usage?.completion_tokens || 0,
+        usage?.total_tokens || 0,
+        usage?.cost || 0,
+        requestType
+    ], (err) => {
+        if (err) {
+            console.error('[AI Usage] Failed to save usage:', err.message);
+        }
+    });
+};
+
 // AI Settings Endpoint - get current AI configuration
 app.get('/api/ai/settings', authenticateToken, async (req, res) => {
     const settings = await getAISettings();
@@ -637,6 +690,7 @@ app.get('/api/ai/settings', authenticateToken, async (req, res) => {
         provider: settings.AI_PROVIDER || process.env.AI_PROVIDER || 'openrouter',
         ollamaUrl: settings.OLLAMA_URL || process.env.OLLAMA_URL || 'http://localhost:11434',
         ollamaModel: settings.OLLAMA_MODEL || process.env.OLLAMA_MODEL || 'llama3.1:8b',
+        defaultModel: settings.AI_DEFAULT_MODEL || process.env.AI_DEFAULT_MODEL,
         hasOpenRouterKey: !!(settings.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY),
         // Indicate if settings come from env or database
         configSource: settings.AI_PROVIDER ? 'database' : 'environment'
@@ -666,8 +720,10 @@ app.post('/api/ai/settings', authenticateToken, async (req, res) => {
             if (openRouterKey) {
                 stmt.run('OPENROUTER_API_KEY', openRouterKey);
             } else {
-                db.run("DELETE FROM system_settings WHERE key = 'OPENROUTER_API_KEY'");
             }
+        }
+        if (req.body.defaultModel) {
+            stmt.run('AI_DEFAULT_MODEL', req.body.defaultModel);
         }
 
         db.run('COMMIT', (err) => {
@@ -707,6 +763,51 @@ app.post('/api/ai/test-ollama', authenticateToken, async (req, res) => {
     }
 });
 
+// Test OpenRouter Connection
+app.post('/api/ai/test-openrouter', authenticateToken, async (req, res) => {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+        return res.json({ success: false, message: 'API key is required' });
+    }
+
+    try {
+        // Test by fetching models from OpenRouter
+        const response = await fetch('https://openrouter.ai/api/v1/models', {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'HTTP-Referer': process.env.OPENROUTER_REFERRER || 'http://localhost:3000',
+                'X-Title': 'OptiStack'
+            },
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const models = (data.data || [])
+                .map(m => ({ id: m.id, name: m.name || m.id }));
+
+            // Sort models alphabetically
+            models.sort((a, b) => a.name.localeCompare(b.name));
+
+            res.json({
+                success: true,
+                message: `API key valid! ${models.length} models available.`,
+                models: models
+            });
+        } else if (response.status === 401) {
+            res.json({ success: false, message: 'Invalid API key. Please check and try again.' });
+        } else {
+            res.json({ success: false, message: `OpenRouter returned status ${response.status}` });
+        }
+    } catch (error) {
+        res.json({
+            success: false,
+            message: `Could not connect to OpenRouter. Error: ${error.message}`
+        });
+    }
+});
+
 // AI Status Endpoint - tells frontend if AI is available and which provider
 app.get('/api/ai/status', async (req, res) => {
     const provider = await getAIProvider();
@@ -740,6 +841,79 @@ app.get('/api/ai/models', async (req, res) => {
     });
 });
 
+// AI Usage Endpoint - returns user's AI usage summary for cost tracking
+app.get('/api/ai/usage', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const today = new Date().toISOString().split('T')[0];  // YYYY-MM-DD
+    const firstOfMonth = today.substring(0, 8) + '01';  // YYYY-MM-01
+
+    // Get usage statistics in parallel
+    const queries = {
+        today: `SELECT 
+                    COUNT(*) as requests,
+                    COALESCE(SUM(total_tokens), 0) as tokens,
+                    COALESCE(SUM(cost_usd), 0) as cost
+                FROM ai_usage 
+                WHERE user_id = ? AND date(created_at) = date(?)`,
+        thisMonth: `SELECT 
+                    COUNT(*) as requests,
+                    COALESCE(SUM(total_tokens), 0) as tokens,
+                    COALESCE(SUM(cost_usd), 0) as cost
+                FROM ai_usage 
+                WHERE user_id = ? AND date(created_at) >= date(?)`,
+        total: `SELECT 
+                    COUNT(*) as requests,
+                    COALESCE(SUM(total_tokens), 0) as tokens,
+                    COALESCE(SUM(cost_usd), 0) as cost
+                FROM ai_usage 
+                WHERE user_id = ?`,
+        recent: `SELECT id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost_usd, request_type, created_at
+                FROM ai_usage 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 10`,
+        byModel: `SELECT 
+                    model, 
+                    provider, 
+                    COUNT(*) as requests, 
+                    COALESCE(SUM(total_tokens), 0) as tokens, 
+                    COALESCE(SUM(cost_usd), 0) as cost
+                FROM ai_usage 
+                WHERE user_id = ? 
+                GROUP BY model, provider 
+                ORDER BY cost DESC`
+    };
+
+    const result = {};
+
+    db.get(queries.today, [userId, today], (err, todayData) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        result.today = todayData || { requests: 0, tokens: 0, cost: 0 };
+
+        db.get(queries.thisMonth, [userId, firstOfMonth], (err, monthData) => {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            result.thisMonth = monthData || { requests: 0, tokens: 0, cost: 0 };
+
+            db.get(queries.total, [userId], (err, totalData) => {
+                if (err) return res.status(500).json({ error: 'Database error' });
+                result.total = totalData || { requests: 0, tokens: 0, cost: 0 };
+
+                db.all(queries.recent, [userId], (err, recentData) => {
+                    if (err) return res.status(500).json({ error: 'Database error' });
+                    result.recentRequests = recentData || [];
+
+                    db.all(queries.byModel, [userId], (err, modelData) => {
+                        if (err) return res.status(500).json({ error: 'Database error' });
+                        result.usageByModel = modelData || [];
+
+                        res.json(result);
+                    });
+                });
+            });
+        });
+    });
+});
+
 // AI Proxy Endpoint (keeps API keys server-side)
 app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
     const { prompt, model, format } = req.body;
@@ -759,6 +933,9 @@ app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
         console.log(`[AI Analyze] Requested model: ${model}`);
 
         const result = await provider.chat(model, [{ role: 'user', content: prompt }], { format });
+
+        // Track AI usage for cost estimation
+        saveAIUsage(req.user.id, provider.type, result.model || model, result.usage, 'analyze');
 
         // Return in the format expected by the frontend
         res.json({
@@ -970,6 +1147,9 @@ ${supplementContext}`;
         const assistantMessage = result.content;
 
         console.log(`[AI Chat] Successful response from ${provider.type}`);
+
+        // Track AI usage for cost estimation
+        saveAIUsage(req.user.id, provider.type, result.model || model, result.usage, 'chat');
 
         // Save both messages to chat history
         db.run('INSERT INTO chat_history (user_id, session_id, role, content) VALUES (?, ?, ?, ?)',

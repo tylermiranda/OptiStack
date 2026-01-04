@@ -1,6 +1,10 @@
 # Changelog
 
 
+## [2.2.0] - 2026-01-04
+### Added
+- **AI Cost Tracking**: New "Usage" tab in Settings showing per-user Cloud AI (OpenRouter) costs. View today's usage, monthly totals, all-time statistics, and a list of recent AI requests with token counts and costs. Local AI (Ollama) usage is tracked as free.
+
 ## [2.1.2] - 2026-01-03
 ### Added
 - **Project Acknowledgment**: Added recognition in the README for project development using Antigravity and Gemini Pro.
