@@ -29,7 +29,7 @@ import AuthPage from './components/AuthPage';
 
 function Dashboard() {
     const { user, token, logout, isAuthDisabled } = useAuth();
-    const { settings } = useSettings();
+    const { settings, aiStatus } = useSettings();
     const [supplements, setSupplements] = useState([]);
 
     const [editingId, setEditingId] = useState(null);
@@ -196,35 +196,37 @@ function Dashboard() {
                                 <p>Refill Assistant</p>
                             </TooltipContent>
                         </Tooltip>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={() => setIsInteractionOpen(true)}
-                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                                    aria-label="Safety Check"
-                                >
-                                    <Stethoscope size={16} className="sm:size-[18px]" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Interaction Checker</p>
-                            </TooltipContent>
-                        </Tooltip>
-                        {settings.aiEnabled && (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={() => setIsChatOpen(true)}
-                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                                        aria-label="AI Chat"
-                                    >
-                                        <MessageCircle size={16} className="sm:size-[18px]" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>AI Chat Assistant</p>
-                                </TooltipContent>
-                            </Tooltip>
+                        {aiStatus.available && (
+                            <>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={() => setIsInteractionOpen(true)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                            aria-label="Safety Check"
+                                        >
+                                            <Stethoscope size={16} className="sm:size-[18px]" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Interaction Checker</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={() => setIsChatOpen(true)}
+                                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                            aria-label="AI Chat"
+                                        >
+                                            <MessageCircle size={16} className="sm:size-[18px]" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>AI Chat Assistant</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </>
                         )}
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -339,7 +341,7 @@ function Dashboard() {
                     <RefillModal open={isRefillOpen} onOpenChange={setIsRefillOpen} supplements={supplements} />
                     <InteractionChecker open={isInteractionOpen} onOpenChange={setIsInteractionOpen} supplements={supplements} />
                     <ShareStackDialog open={isShareOpen} onOpenChange={setIsShareOpen} supplements={supplements} />
-                    {settings.aiEnabled && <AIChatDialog open={isChatOpen} onOpenChange={setIsChatOpen} />}
+                    {aiStatus.available && <AIChatDialog open={isChatOpen} onOpenChange={setIsChatOpen} />}
                     <StackTemplatesDialog
                         open={isTemplatesOpen}
                         onOpenChange={setIsTemplatesOpen}

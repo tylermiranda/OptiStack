@@ -131,6 +131,7 @@ On first startup, a default admin user is created:
 - 📊 **AI Analysis History**: Automatically saves every AI stack analysis for future reference with full details and timestamps
 - 💾 **Data Backup & Restore**: Securely backup your database and restore it with a single click
 - 👤 **Single User Mode**: Optional mode to disable authentication for personal use or external auth
+- 💰 **AI Cost Tracking**: Monitor your Cloud AI usage and costs per user in Settings → Usage
 - 🤖 AI-powered supplement analysis (optional)
 
 ## AI Features (Optional)

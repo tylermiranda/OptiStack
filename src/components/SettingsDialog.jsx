@@ -5,10 +5,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from "./ui/switch"
 import { Label } from "./ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { Bot, AlertTriangle, Info, Cloud, Server, CheckCircle2, XCircle, Loader2, RefreshCw, Settings, Shield } from 'lucide-react';
+import { Bot, AlertTriangle, Info, Cloud, Server, CheckCircle2, XCircle, Loader2, RefreshCw, Settings, Shield, DollarSign, Ban } from 'lucide-react';
 
 // Lazy load AdminDashboard to avoid bloating the bundle for non-admins
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
+// Lazy load AICostDisplay to keep initial bundle small
+const AICostDisplay = lazy(() => import('./AICostDisplay').then(m => ({ default: m.AICostDisplay })));
 
 export function SettingsDialog({ open, onOpenChange }) {
     const { settings, aiStatus, updateSettings, availableModels, refreshAIStatus } = useSettings();
@@ -21,11 +23,26 @@ export function SettingsDialog({ open, onOpenChange }) {
         openRouterKey: '',
         hasOpenRouterKey: false
     });
+    const [initialConfig, setInitialConfig] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
     const [testingOllama, setTestingOllama] = useState(false);
     const [ollamaTestResult, setOllamaTestResult] = useState(null);
     const [ollamaModels, setOllamaModels] = useState([]);
+    const [testingOpenRouter, setTestingOpenRouter] = useState(false);
+    const [openRouterTestResult, setOpenRouterTestResult] = useState(null);
+    const [openRouterValidated, setOpenRouterValidated] = useState(false);
+    const [openRouterModels, setOpenRouterModels] = useState([]);
     const [activeTab, setActiveTab] = useState("general");
+    // Popular cheap models for cost‑conscious usage
+    const popularModels = [
+        // OpenRouter identifiers (example list – adjust as needed)
+        "meta-llama/Meta-Llama-3-8B-Instruct",
+        "google/gemma-2b",
+        "mistralai/mistral-7b-instruct",
+        "openai/gpt-3.5-turbo",
+        "openai/gpt-4o-mini"
+    ];
 
     const inputClassName = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
     const buttonClassName = "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
@@ -38,13 +55,21 @@ export function SettingsDialog({ open, onOpenChange }) {
             })
                 .then(res => res.json())
                 .then(data => {
-                    setAiConfig({
+                    const config = {
                         provider: data.provider || 'openrouter',
                         ollamaUrl: data.ollamaUrl || 'http://localhost:11434',
                         ollamaModel: data.ollamaModel || 'llama3.1:8b',
+                        defaultModel: data.defaultModel,
                         openRouterKey: '',
                         hasOpenRouterKey: data.hasOpenRouterKey
-                    });
+                    };
+                    setAiConfig(config);
+                    setInitialConfig(config);
+                    setSaved(false);
+                    // If OpenRouter key is already configured, mark as validated
+                    if (data.hasOpenRouterKey && data.provider === 'openrouter') {
+                        setOpenRouterValidated(true);
+                    }
                 })
                 .catch(console.error);
         }
@@ -75,13 +100,59 @@ export function SettingsDialog({ open, onOpenChange }) {
         }
     };
 
+    const testOpenRouterConnection = async () => {
+        const keyToTest = aiConfig.openRouterKey;
+        if (!keyToTest) {
+            setOpenRouterTestResult({ success: false, message: 'Please enter an API key' });
+            return;
+        }
+
+        setTestingOpenRouter(true);
+        setOpenRouterTestResult(null);
+
+        try {
+            const res = await fetch('/api/ai/test-openrouter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ apiKey: keyToTest })
+            });
+
+            const data = await res.json();
+            setOpenRouterTestResult(data);
+            if (data.success) {
+                setOpenRouterValidated(true);
+                if (data.models && data.models.length > 0) {
+                    setOpenRouterModels(data.models);
+
+                    // Default to Gemini Flash 2.0 if not already set or invalid
+                    const defaultModelId = "google/gemini-2.0-flash-exp:free"; // Or similar ID
+                    // Check if current generic default needs update or if user hasn't selected one
+                    if (!settings.aiModel || !data.models.find(m => m.id === settings.aiModel)) {
+                        const gemini = data.models.find(m => m.id.includes("gemini-2.0-flash"));
+                        if (gemini) {
+                            updateSettings({ aiModel: gemini.id });
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            setOpenRouterTestResult({ success: false, message: 'Connection test failed' });
+        } finally {
+            setTestingOpenRouter(false);
+        }
+    };
+
     const saveSettings = async () => {
         setSaving(true);
         try {
             const body = {
                 provider: aiConfig.provider,
                 ollamaUrl: aiConfig.ollamaUrl,
-                ollamaModel: aiConfig.ollamaModel
+                ollamaModel: aiConfig.ollamaModel,
+                defaultModel: settings.aiModel
             };
 
             // Only send API key if user entered a new one
@@ -103,8 +174,11 @@ export function SettingsDialog({ open, onOpenChange }) {
                 refreshAIStatus();
             }
 
-            // Clear the key input after saving
-            setAiConfig(prev => ({ ...prev, openRouterKey: '', hasOpenRouterKey: true }));
+            // Mark as saved and update initial config to match current
+            const newConfig = { ...aiConfig, openRouterKey: '', hasOpenRouterKey: aiConfig.openRouterKey ? true : aiConfig.hasOpenRouterKey };
+            setAiConfig(newConfig);
+            setInitialConfig(newConfig);
+            setSaved(true);
         } catch (error) {
             console.error('Failed to save settings:', error);
         } finally {
@@ -112,8 +186,26 @@ export function SettingsDialog({ open, onOpenChange }) {
         }
     };
 
+    // Track if changes have been made
+    const hasChanges = initialConfig && (
+        aiConfig.provider !== initialConfig.provider ||
+        aiConfig.ollamaUrl !== initialConfig.ollamaUrl ||
+        aiConfig.ollamaModel !== initialConfig.ollamaModel ||
+        aiConfig.openRouterKey !== '' ||
+        settings.aiModel !== aiConfig.defaultModel
+    );
+
+    // Clear saved state when changes are made
+    const updateConfig = (updates) => {
+        setSaved(false);
+        setAiConfig(prev => ({ ...prev, ...updates }));
+    };
+
     const isOllama = aiConfig.provider === 'ollama';
+    const isNoAI = aiConfig.provider === 'none';
+    const isOpenRouter = aiConfig.provider === 'openrouter';
     const isAdmin = user?.is_admin === 1 || user?.is_admin === true;
+    const isAIEnabled = !isNoAI && aiStatus.available;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -126,10 +218,15 @@ export function SettingsDialog({ open, onOpenChange }) {
                 </DialogHeader>
 
                 <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsList className={`grid w-full grid-cols-${1 + (isAIEnabled ? 1 : 0) + (isAdmin ? 1 : 0)} mb-4`}>
                         <TabsTrigger value="general" className="flex items-center gap-2">
                             <Settings size={16} /> General
                         </TabsTrigger>
+                        {isAIEnabled && (
+                            <TabsTrigger value="usage" className="flex items-center gap-2">
+                                <DollarSign size={16} /> Usage
+                            </TabsTrigger>
+                        )}
                         {isAdmin && (
                             <TabsTrigger value="admin" className="flex items-center gap-2">
                                 <Shield size={16} /> Admin
@@ -143,17 +240,17 @@ export function SettingsDialog({ open, onOpenChange }) {
                             <div className="space-y-4">
                                 <Label className="text-base font-semibold">AI Provider</Label>
 
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     {/* OpenRouter Option */}
                                     <button
-                                        onClick={() => setAiConfig(prev => ({ ...prev, provider: 'openrouter' }))}
-                                        className={`p-4 rounded-lg border-2 text-left transition-all ${!isOllama
+                                        onClick={() => updateConfig({ provider: 'openrouter' })}
+                                        className={`p-4 rounded-lg border-2 text-left transition-all ${isOpenRouter
                                             ? 'border-primary bg-primary/5'
                                             : 'border-border hover:border-muted-foreground/50'
                                             }`}
                                     >
                                         <div className="flex items-center gap-2 mb-1">
-                                            <Cloud size={18} className={!isOllama ? 'text-primary' : 'text-muted-foreground'} />
+                                            <Cloud size={18} className={isOpenRouter ? 'text-primary' : 'text-muted-foreground'} />
                                             <span className="font-medium">Cloud AI</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground">OpenRouter</p>
@@ -161,7 +258,7 @@ export function SettingsDialog({ open, onOpenChange }) {
 
                                     {/* Ollama Option */}
                                     <button
-                                        onClick={() => setAiConfig(prev => ({ ...prev, provider: 'ollama' }))}
+                                        onClick={() => updateConfig({ provider: 'ollama' })}
                                         className={`p-4 rounded-lg border-2 text-left transition-all ${isOllama
                                             ? 'border-primary bg-primary/5'
                                             : 'border-border hover:border-muted-foreground/50'
@@ -173,11 +270,36 @@ export function SettingsDialog({ open, onOpenChange }) {
                                         </div>
                                         <p className="text-xs text-muted-foreground">Ollama (Private)</p>
                                     </button>
+
+                                    {/* No AI Option */}
+                                    <button
+                                        onClick={() => updateConfig({ provider: 'none' })}
+                                        className={`p-4 rounded-lg border-2 text-left transition-all ${isNoAI
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border hover:border-muted-foreground/50'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Ban size={18} className={isNoAI ? 'text-primary' : 'text-muted-foreground'} />
+                                            <span className="font-medium">No AI</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Disabled</p>
+                                    </button>
                                 </div>
                             </div>
 
                             {/* Provider-specific settings */}
-                            {isOllama ? (
+                            {isNoAI ? (
+                                <div className="p-4 rounded-lg bg-muted/50 border space-y-2">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <Info size={16} />
+                                        <span className="text-sm font-medium">AI Features Disabled</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        The following features will not be available: Stack Analysis, AI Chat, Interaction Checker, Stack Optimizer, and AI-powered supplement insights.
+                                    </p>
+                                </div>
+                            ) : isOllama ? (
                                 <div className="space-y-4 p-4 rounded-lg bg-muted/50 border">
                                     <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                                         <CheckCircle2 size={16} />
@@ -191,7 +313,7 @@ export function SettingsDialog({ open, onOpenChange }) {
                                                 id="ollama-url"
                                                 className={inputClassName}
                                                 value={aiConfig.ollamaUrl}
-                                                onChange={(e) => setAiConfig(prev => ({ ...prev, ollamaUrl: e.target.value }))}
+                                                onChange={(e) => updateConfig({ ollamaUrl: e.target.value })}
                                                 placeholder="http://localhost:11434"
                                             />
                                             <button
@@ -219,7 +341,7 @@ export function SettingsDialog({ open, onOpenChange }) {
                                                 id="ollama-model"
                                                 className={inputClassName}
                                                 value={aiConfig.ollamaModel}
-                                                onChange={(e) => setAiConfig(prev => ({ ...prev, ollamaModel: e.target.value }))}
+                                                onChange={(e) => updateConfig({ ollamaModel: e.target.value })}
                                             >
                                                 {ollamaModels.map(model => (
                                                     <option key={model} value={model}>{model}</option>
@@ -230,7 +352,7 @@ export function SettingsDialog({ open, onOpenChange }) {
                                                 id="ollama-model"
                                                 className={inputClassName}
                                                 value={aiConfig.ollamaModel}
-                                                onChange={(e) => setAiConfig(prev => ({ ...prev, ollamaModel: e.target.value }))}
+                                                onChange={(e) => updateConfig({ ollamaModel: e.target.value })}
                                                 placeholder="llama3.1:8b"
                                             />
                                         )}
@@ -239,23 +361,74 @@ export function SettingsDialog({ open, onOpenChange }) {
                                         </p>
                                     </div>
                                 </div>
-                            ) : (
+                            ) : isOpenRouter ? (
                                 <div className="space-y-4 p-4 rounded-lg bg-muted/50 border">
                                     <div className="space-y-2">
                                         <Label htmlFor="openrouter-key">OpenRouter API Key</Label>
-                                        <input
-                                            id="openrouter-key"
-                                            type="password"
-                                            className={inputClassName}
-                                            value={aiConfig.openRouterKey}
-                                            onChange={(e) => setAiConfig(prev => ({ ...prev, openRouterKey: e.target.value }))}
-                                            placeholder={aiConfig.hasOpenRouterKey ? '••••••••••••••••' : 'sk-or-v1-...'}
-                                        />
+                                        <div className="flex gap-2">
+                                            <input
+                                                id="openrouter-key"
+                                                type="password"
+                                                className={`${inputClassName} flex-1`}
+                                                value={aiConfig.openRouterKey}
+                                                onChange={(e) => {
+                                                    updateConfig({ openRouterKey: e.target.value });
+                                                    setOpenRouterValidated(false);
+                                                    setOpenRouterTestResult(null);
+                                                }}
+                                                placeholder={aiConfig.hasOpenRouterKey ? '••••••••••••••••' : 'sk-or-v1-...'}
+                                            />
+                                            <button
+                                                onClick={testOpenRouterConnection}
+                                                disabled={testingOpenRouter || !aiConfig.openRouterKey}
+                                                className={`${buttonClassName} border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 shrink-0`}
+                                            >
+                                                {testingOpenRouter ? (
+                                                    <>
+                                                        <Loader2 size={14} className="animate-spin mr-2" />
+                                                        Testing...
+                                                    </>
+                                                ) : (
+                                                    'Validate'
+                                                )}
+                                            </button>
+                                        </div>
                                         <p className="text-xs text-muted-foreground">
                                             Get a free key from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">openrouter.ai/keys</a>
                                         </p>
-                                        {aiConfig.hasOpenRouterKey && (
+                                        {openRouterTestResult && (
+                                            <p className={`text-xs ${openRouterTestResult.success ? 'text-green-600' : 'text-red-500'}`}>
+                                                {openRouterTestResult.success ? '✓' : '✗'} {openRouterTestResult.message}
+                                            </p>
+                                        )}
+                                        {!openRouterTestResult && aiConfig.hasOpenRouterKey && (
                                             <p className="text-xs text-green-600">✓ API key configured</p>
+                                        )}
+
+                                        {(openRouterValidated || (!aiConfig.openRouterKey && aiConfig.hasOpenRouterKey)) && (
+                                            <div className="space-y-2 pt-2 border-t border-border/50">
+                                                <Label htmlFor="openrouter-model" className="flex items-center gap-2">
+                                                    <Bot size={14} /> AI Model
+                                                </Label>
+                                                <select
+                                                    id="openrouter-model"
+                                                    className={inputClassName}
+                                                    value={settings.aiModel}
+                                                    onChange={(e) => updateSettings({ aiModel: e.target.value })}
+                                                >
+                                                    {(openRouterModels.length > 0
+                                                        ? openRouterModels
+                                                        : availableModels
+                                                    ).map(model => (
+                                                        <option key={model.id} value={model.id}>
+                                                            {model.name || model.id}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Showing all available models. Validate key to refresh list.
+                                                </p>
+                                            </div>
                                         )}
                                     </div>
 
@@ -267,64 +440,40 @@ export function SettingsDialog({ open, onOpenChange }) {
                                         </span>
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
                             {/* Save Button */}
                             <button
                                 onClick={saveSettings}
-                                disabled={saving}
-                                className={`${buttonClassName} bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 w-full`}
+                                disabled={saving || (!hasChanges && !saved && settings.aiModel === (aiConfig.ollamaModel || aiConfig.defaultModel))}
+                                className={`${buttonClassName} ${saved ? 'bg-green-600 hover:bg-green-600' : 'bg-primary hover:bg-primary/90'} text-primary-foreground h-10 px-4 w-full`}
                             >
                                 {saving ? (
                                     <>
                                         <Loader2 size={16} className="animate-spin mr-2" />
                                         Saving...
                                     </>
+                                ) : saved ? (
+                                    <>
+                                        <CheckCircle2 size={16} className="mr-2" />
+                                        Saved!
+                                    </>
                                 ) : (
                                     'Save AI Settings'
                                 )}
                             </button>
 
-                            <hr className="border-border" />
 
-                            {/* AI Toggle & Model Selection (existing) */}
-                            {aiStatus.available && (
-                                <>
-                                    <div className="flex items-center justify-between space-x-2">
-                                        <Label htmlFor="ai-mode" className="flex flex-col space-y-1">
-                                            <span>Enable AI Features</span>
-                                            <span className="font-normal text-xs text-muted-foreground">Allow AI to analyze ingredients and stacks.</span>
-                                        </Label>
-                                        <Switch
-                                            id="ai-mode"
-                                            checked={settings.aiEnabled}
-                                            onCheckedChange={(checked) => updateSettings({ aiEnabled: checked })}
-                                        />
-                                    </div>
-
-                                    {settings.aiEnabled && availableModels.length > 0 && (
-                                        <div className="space-y-2">
-                                            <Label htmlFor="ai-model" className="flex items-center gap-2">
-                                                <Bot size={14} /> AI Model
-                                            </Label>
-                                            <select
-                                                id="ai-model"
-                                                className={inputClassName}
-                                                value={settings.aiModel}
-                                                onChange={(e) => updateSettings({ aiModel: e.target.value })}
-                                            >
-                                                {availableModels.map(model => (
-                                                    <option key={model.id} value={model.id}>
-                                                        {model.name || model.id}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                </>
-                            )}
                         </div>
                     </TabsContent>
+
+                    {isAIEnabled && (
+                        <TabsContent value="usage">
+                            <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}>
+                                <AICostDisplay />
+                            </Suspense>
+                        </TabsContent>
+                    )}
 
                     {isAdmin && (
                         <TabsContent value="admin">
@@ -335,6 +484,6 @@ export function SettingsDialog({ open, onOpenChange }) {
                     )}
                 </Tabs>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

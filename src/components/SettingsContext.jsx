@@ -14,7 +14,6 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
     const [settings, setSettings] = useState(() => {
         const saved = localStorage.getItem(storageKey)
         return saved ? JSON.parse(saved) : {
-            aiEnabled: true,
             aiModel: "google/gemini-2.0-flash-001"
         }
     })
@@ -103,8 +102,8 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
     const value = {
         settings: {
             ...settings,
-            // AI is only truly enabled if server has the provider configured AND user wants it
-            aiEnabled: settings.aiEnabled && aiStatus.available
+            // AI is enabled if the server reports it as available
+            aiEnabled: aiStatus.available
         },
         aiStatus,
         updateSettings,

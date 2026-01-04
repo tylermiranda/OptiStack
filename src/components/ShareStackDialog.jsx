@@ -7,7 +7,7 @@ import { useSettings } from './SettingsContext';
 
 const ShareStackDialog = ({ open, onOpenChange, supplements }) => {
     const { user, token } = useAuth();
-    const { settings } = useSettings();
+    const { settings, aiStatus } = useSettings();
     const [isGenerating, setIsGenerating] = useState(false);
     const [includeAI, setIncludeAI] = useState(false);
 
@@ -339,19 +339,21 @@ const ShareStackDialog = ({ open, onOpenChange, supplements }) => {
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 mb-4">
-                                <input
-                                    type="checkbox"
-                                    id="includeAI"
-                                    checked={includeAI}
-                                    onChange={(e) => setIncludeAI(e.target.checked)}
-                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                />
-                                <label htmlFor="includeAI" className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2">
-                                    <Sparkles size={14} className="text-purple-500" />
-                                    Include AI Safety Analysis
-                                </label>
-                            </div>
+                            {aiStatus.available && (
+                                <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30 mb-4">
+                                    <input
+                                        type="checkbox"
+                                        id="includeAI"
+                                        checked={includeAI}
+                                        onChange={(e) => setIncludeAI(e.target.checked)}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <label htmlFor="includeAI" className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2">
+                                        <Sparkles size={14} className="text-purple-500" />
+                                        Include AI Safety Analysis
+                                    </label>
+                                </div>
+                            )}
 
                             <button
                                 onClick={generatePDF}

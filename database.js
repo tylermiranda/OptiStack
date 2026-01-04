@@ -209,6 +209,23 @@ function initDb() {
             FOREIGN KEY(user_id) REFERENCES users(id)
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_shared_stacks_code ON shared_stacks(share_code)');
+
+        // AI Usage Table (for tracking OpenRouter/Ollama costs per user)
+        db.run(`CREATE TABLE IF NOT EXISTS ai_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT,
+            prompt_tokens INTEGER DEFAULT 0,
+            completion_tokens INTEGER DEFAULT 0,
+            total_tokens INTEGER DEFAULT 0,
+            cost_usd REAL DEFAULT 0,
+            request_type TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_ai_usage_user_id ON ai_usage(user_id)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_ai_usage_created_at ON ai_usage(created_at)');
     });
 }
 
