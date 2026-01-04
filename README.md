@@ -193,6 +193,10 @@ npm run dev
 npm run server
 ```
 
+# Acknowledgments
+
+Mostly created using [Antigravity](https://github.com/google-deepmind/antigravity) with Gemini Pro.
+
 ## License
 
 MIT

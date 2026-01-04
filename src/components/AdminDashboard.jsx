@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Shield, ShieldAlert, ShieldCheck, Save, Users, Settings, Database } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, Save, Users, Settings, Database, FileText, RefreshCw, Pause, Play, Search, Filter } from 'lucide-react';
 import { Alert, AlertDescription } from "./ui/alert";
 
 const AdminDashboard = () => {
@@ -109,6 +109,7 @@ const AdminDashboard = () => {
                     <TabsTrigger value="users" className="flex gap-2"><Users size={16} /> User Management</TabsTrigger>
                     <TabsTrigger value="settings" className="flex gap-2"><Settings size={16} /> OIDC Configuration</TabsTrigger>
                     <TabsTrigger value="maintenance" className="flex gap-2"><Database size={16} /> Maintenance</TabsTrigger>
+                    <TabsTrigger value="logs" className="flex gap-2"><FileText size={16} /> System Logs</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="users">
@@ -262,8 +263,150 @@ const AdminDashboard = () => {
                 <TabsContent value="maintenance">
                     <MaintenanceTab token={token} />
                 </TabsContent>
+
+                <TabsContent value="logs">
+                    <LogViewer token={token} />
+                </TabsContent>
             </Tabs>
         </div >
+    );
+};
+
+const LogViewer = ({ token }) => {
+    const [logs, setLogs] = useState([]);
+    const [filteredLogs, setFilteredLogs] = useState([]);
+    const [filter, setFilter] = useState('all');
+    const [search, setSearch] = useState('');
+    const [autoRefresh, setAutoRefresh] = useState(true);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        fetchLogs();
+        // eslint-disable-next-line
+    }, []);
+
+    useEffect(() => {
+        let interval;
+        if (autoRefresh) {
+            interval = setInterval(fetchLogs, 3000);
+        }
+        return () => clearInterval(interval);
+        // eslint-disable-next-line
+    }, [autoRefresh]);
+
+    useEffect(() => {
+        let result = logs;
+
+        if (filter !== 'all') {
+            result = result.filter(log => log.level === filter);
+        }
+
+        if (search) {
+            const lowerSearch = search.toLowerCase();
+            result = result.filter(log =>
+                log.message.toLowerCase().includes(lowerSearch) ||
+                log.level.toLowerCase().includes(lowerSearch)
+            );
+        }
+
+        setFilteredLogs(result);
+    }, [logs, filter, search]);
+
+    const fetchLogs = async () => {
+        // Don't set loading on auto-refresh to avoid flickering
+        if (!autoRefresh) setLoading(true);
+        try {
+            const res = await fetch('/api/admin/logs', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                // Reverse to show newest first
+                setLogs(data.reverse());
+            }
+        } catch (e) {
+            console.error("Failed to fetch logs", e);
+        } finally {
+            if (!autoRefresh) setLoading(false);
+        }
+    };
+
+    const getLevelColor = (level) => {
+        switch (level) {
+            case 'error': return 'text-red-500';
+            case 'warn': return 'text-amber-500';
+            default: return 'text-blue-500';
+        }
+    };
+
+    return (
+        <div className="rounded-md border bg-card flex flex-col h-[600px]">
+            <div className="p-4 border-b flex items-center justify-between gap-4 bg-muted/30">
+                <div className="flex items-center gap-2 flex-1">
+                    <div className="relative flex-1 max-w-xs">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <input
+                            placeholder="Search logs..."
+                            className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <select
+                        className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                    >
+                        <option value="all">All Levels</option>
+                        <option value="info">Info</option>
+                        <option value="warn">Warning</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setAutoRefresh(!autoRefresh)}
+                        className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 ${autoRefresh ? 'text-green-600' : 'text-muted-foreground'}`}
+                        title={autoRefresh ? "Pause Auto-refresh" : "Enable Auto-refresh"}
+                    >
+                        {autoRefresh ? <Pause size={16} className="mr-2" /> : <Play size={16} className="mr-2" />}
+                        {autoRefresh ? 'Live' : 'Paused'}
+                    </button>
+                    <button
+                        onClick={fetchLogs}
+                        disabled={loading}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
+                        title="Refresh Now"
+                    >
+                        <RefreshCw size={16} className={loading && !autoRefresh ? 'animate-spin' : ''} />
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-0 font-mono text-xs bg-black text-gray-300">
+                {filteredLogs.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                        No logs found
+                    </div>
+                ) : (
+                    <div className="divide-y divide-gray-800">
+                        {filteredLogs.map((log, index) => (
+                            <div key={index} className="flex gap-4 p-2 hover:bg-white/5 transition-colors">
+                                <span className="text-gray-500 whitespace-nowrap shrink-0">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                                <span className={`font-bold w-12 shrink-0 ${getLevelColor(log.level)} uppercase`}>{log.level}</span>
+                                <span className="break-all whitespace-pre-wrap">{log.message}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="p-2 border-t text-xs text-muted-foreground bg-muted/30 flex justify-between">
+                <span>Showing {filteredLogs.length} events</span>
+                {autoRefresh && <span className="flex items-center gap-1"><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span> Live Updates</span>}
+            </div>
+        </div>
     );
 };
 

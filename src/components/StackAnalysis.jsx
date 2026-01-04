@@ -71,7 +71,7 @@ const StackAnalysis = ({ supplements }) => {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ model, prompt })
+                body: JSON.stringify({ model, prompt, format: 'json' })
             });
 
             if (!response.ok) {
@@ -80,8 +80,20 @@ const StackAnalysis = ({ supplements }) => {
 
             const data = await response.json();
             const content = data.choices[0].message.content;
-            const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(cleanContent);
+
+            // Robust JSON extraction
+            const jsonStart = content.indexOf('{');
+            const jsonEnd = content.lastIndexOf('}');
+
+            let result;
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                const jsonString = content.substring(jsonStart, jsonEnd + 1);
+                result = JSON.parse(jsonString);
+            } else {
+                // Fallback to original cleanup just in case
+                const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+                result = JSON.parse(cleanContent);
+            }
             setAnalysis(result);
 
             // Auto-save the analysis

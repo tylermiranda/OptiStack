@@ -24,6 +24,45 @@ if (!JWT_SECRET) {
     process.exit(1);
 }
 
+// Log Buffer Implementation
+const LOG_BUFFER_SIZE = 1000;
+const logBuffer = [];
+
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+const addToBuffer = (level, args) => {
+    const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+
+    logBuffer.push({
+        timestamp: new Date().toISOString(),
+        level,
+        message
+    });
+
+    if (logBuffer.length > LOG_BUFFER_SIZE) {
+        logBuffer.shift();
+    }
+};
+
+console.log = (...args) => {
+    addToBuffer('info', args);
+    originalConsoleLog.apply(console, args);
+};
+
+console.warn = (...args) => {
+    addToBuffer('warn', args);
+    originalConsoleWarn.apply(console, args);
+};
+
+console.error = (...args) => {
+    addToBuffer('error', args);
+    originalConsoleError.apply(console, args);
+};
+
 // Rate Limiting
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: { error: 'Too many requests' } });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many login attempts' } });
@@ -263,6 +302,11 @@ app.post('/api/admin/settings', authenticateToken, requireAdmin, (req, res) => {
 });
 
 
+// Get System Logs
+app.get('/api/admin/logs', authenticateToken, requireAdmin, (req, res) => {
+    res.json(logBuffer);
+});
+
 // Maintenance Routes
 
 // Configure multer for file upload
@@ -460,10 +504,12 @@ const createAIProvider = (config = {}) => {
                     return [];
                 }
             },
-            chat: async (model, messages) => {
+            chat: async (model, messages, options = {}) => {
                 const targetModel = (model || defaultModel || '').trim();
                 console.log(`[Ollama] Sending chat request to ${ollamaUrl}/api/chat`);
-                console.log(`[Ollama] Model: ${targetModel}`);
+
+                const format = options?.format;
+                console.log(`[Ollama] Model: ${targetModel} ${format ? `(Format: ${format})` : ''}`);
 
                 try {
                     console.log(`[Ollama] Waiting for response... (timeout 120s)`);
@@ -473,7 +519,8 @@ const createAIProvider = (config = {}) => {
                         body: JSON.stringify({
                             model: targetModel,
                             messages,
-                            stream: false
+                            stream: false,
+                            format: format || undefined // Support JSON mode if requested
                         }),
                         signal: AbortSignal.timeout(120000) // 2 minute timeout
                     });
@@ -542,7 +589,7 @@ const createAIProvider = (config = {}) => {
             { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus' },
             { id: 'google/gemini-2.0-pro-exp-02-05:free', name: 'Gemini 2.0 Pro (Experimental)' },
         ],
-        chat: async (model, messages) => {
+        chat: async (model, messages, options = {}) => {
             if (!apiKey) {
                 throw new Error('OPENROUTER_API_KEY is not configured');
             }
@@ -695,7 +742,7 @@ app.get('/api/ai/models', async (req, res) => {
 
 // AI Proxy Endpoint (keeps API keys server-side)
 app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
-    const { prompt, model } = req.body;
+    const { prompt, model, format } = req.body;
     const provider = await getAIProvider();
 
     try {
@@ -711,7 +758,7 @@ app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
         console.log(`[AI Analyze] Using provider: ${provider.type}`);
         console.log(`[AI Analyze] Requested model: ${model}`);
 
-        const result = await provider.chat(model, [{ role: 'user', content: prompt }]);
+        const result = await provider.chat(model, [{ role: 'user', content: prompt }], { format });
 
         // Return in the format expected by the frontend
         res.json({

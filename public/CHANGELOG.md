@@ -1,6 +1,10 @@
 # Changelog
 
 
+## [2.1.2] - 2026-01-03
+### Added
+- **Project Acknowledgment**: Added recognition in the README for project development using Antigravity and Gemini Pro.
+
 ## [2.1.0] - 2026-01-03
 ### Changed
 - **Unified Settings & Admin**: Merged the Admin Dashboard into the Settings menu. Admin features are now accessible via a dedicated "Admin" tab within Settings, visible only to users with admin privileges. This simplifies the interface by removing the separate admin button.
