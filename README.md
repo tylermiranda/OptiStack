@@ -6,6 +6,24 @@ OptiStack is a professional-grade, self-hosted platform designed for biohackers 
 
 Whether you're taking a daily multivitamin or managing a complex longevity protocol, OptiStack handles the cognitive load—tracking dosages, checking for contraindications, and helping you stay consistent—all in a privacy-first, Docker-deployable package.
 
+## Table of Contents
+
+- [Why I Built This](#why-i-built-this)
+- [Screenshots](#screenshots)
+- [Quick Start](#quick-start)
+  - [Option A: Quick Deploy](#option-a-quick-deploy-recommended)
+  - [Option B: Clone and Build Locally](#option-b-clone-and-build-locally)
+  - [Configuration](#configuration)
+- [Environment Variables](#environment-variables)
+  - [Single User Mode](#single-user-mode-disable-authentication)
+- [Features](#features)
+- [AI Features](#ai-features-optional)
+  - [Cloud AI (OpenRouter)](#cloud-ai-openrouter)
+  - [Local AI (Ollama)](#local-ai-ollama---privacy-first-option)
+- [Mobile & PWA Support](#mobile--pwa-support)
+- [Development](#development)
+- [Acknowledgments](#acknowledgments)
+
 ## Why I Built This
 
 As someone interested in biohacking and optimizing my own biology, my supplement stack eventually grew from a daily multivitamin into a complex protocol of specific compounds, timings, and cycling schedules. I found myself juggling messy spreadsheets, mental checklists, and random notes just to keep track of it all.
@@ -21,25 +39,13 @@ I built OptiStack to help with this. I wanted something that felt personal and h
 
 **Desktop**
 
-![Desktop Dashboard](public/screenshots/SCR-20260101-rnfu.png)
+| | |
+|:---:|:---:|
+| <img src="public/screenshots/SCR-20260101-rnfu.png" width="400" /> | <img src="public/screenshots/SCR-20260104-pgsl.png" width="400" /> |
+| <img src="public/screenshots/SCR-20260104-pgvh.png" width="400" /> | <img src="public/screenshots/SCR-20260104-pgxt.png" width="400" /> |
+| <img src="public/screenshots/SCR-20260104-phaz.png" width="400" /> | <img src="public/screenshots/SCR-20260104-phea.png" width="400" /> |
+| <img src="public/screenshots/SCR-20260101-rnur.png" width="400" /> | |
 
-**Mobile**
-
-<p align="center">
-  <img src="public/screenshots/SCR-20260101-rnon.png" width="300" alt="Mobile Dashboard">
-</p>
-
-### Add Supplement Form
-
-**Desktop**
-
-![Add Supplement Desktop](public/screenshots/SCR-20260101-rnur.png)
-
-**Mobile**
-
-<p align="center">
-  <img src="public/screenshots/SCR-20260101-rnww.png" width="300" alt="Add Supplement Mobile">
-</p>
 
 </details>
 
