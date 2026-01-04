@@ -19,7 +19,8 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         aiAnalysis: '',
         recommendedDosage: '',
         sideEffects: '',
-        rating: ''
+        rating: '',
+        cycle: { onDays: '', offDays: '', startDate: '' }
     };
 
     const [formData, setFormData] = useState(defaultState);
@@ -37,6 +38,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
     const { token } = useAuth();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
+    const [aiCycleRecommendation, setAiCycleRecommendation] = useState('');
 
     const fetchProductDetails = async () => {
         if (!formData.link) return;
@@ -76,7 +78,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         if (!formData.name) return;
 
         const model = settings.aiModel;
-        const prompt = `Analyze the supplement "${formData.name}". Return a JSON object with five keys: "shortName" (clean name of the main ingredient, e.g. "Magnesium", remove brand/dosage), "aiAnalysis" (short summary, max 2 sentences), "recommendedDosage" (standard dosage range), "sideEffects" (concise list), and "bestTime" (string: strictly "AM", "PM", "Both", or "Any"). Do not include any markdown formatting, just raw JSON.`;
+        const prompt = `Analyze the supplement "${formData.name}". Return a JSON object with these keys: "shortName" (clean ingredient name), "aiAnalysis" (short summary), "recommendedDosage", "sideEffects", "bestTime" ("AM", "PM", "Both", or "Any"), and "cycleRecommendation" (Object with "onDays": number, "offDays": number - ONLY if the supplement is commonly cycled like Creatine or Ashwagandha, otherwise null). Do not include markdown.`;
 
         setIsAnalyzing(true);
         setError(null);
@@ -87,7 +89,11 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ model, prompt })
+                body: JSON.stringify({
+                    model,
+                    prompt,
+                    format: 'json' // Force JSON mode for Ollama
+                })
             });
 
             if (!response.ok) {
@@ -103,8 +109,17 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
 
             const content = data.choices[0].message.content;
 
-            // Parse JSON from content
-            const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+            // Parse JSON from content - Robust parsing logic
+            let cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+
+            // Find first { and last } to handle potential preamble/postamble
+            const firstBrace = cleanContent.indexOf('{');
+            const lastBrace = cleanContent.lastIndexOf('}');
+
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
+            }
+
             const result = JSON.parse(cleanContent);
 
             let newSchedule = {
@@ -124,14 +139,30 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 // finalDosage += ` (Best taken in ${result.bestTime})`;
             }
 
+            // Handle cycle info separately
+            let analysisSummary = result.aiAnalysis || '';
+            let cycleText = '';
+
+            if (result.cycleRecommendation?.onDays && result.cycleRecommendation?.offDays) {
+                cycleText = `Recommended Cycle: ${result.cycleRecommendation.onDays} days on, ${result.cycleRecommendation.offDays} days off.`;
+            } else {
+                cycleText = "No cycling required.";
+            }
+            setAiCycleRecommendation(cycleText);
+
             setFormData(prev => ({
                 ...prev,
                 shortName: result.shortName || prev.name,
                 name: result.shortName || prev.name,
-                aiAnalysis: result.aiAnalysis || '',
+                aiAnalysis: analysisSummary,
                 recommendedDosage: finalDosage,
                 sideEffects: result.sideEffects || '',
-                schedule: newSchedule
+                schedule: newSchedule,
+                cycle: result.cycleRecommendation ? {
+                    onDays: result.cycleRecommendation.onDays,
+                    offDays: result.cycleRecommendation.offDays,
+                    startDate: new Date().toISOString().split('T')[0] // Default to today if cycled
+                } : prev.cycle
             }));
         } catch (error) {
             console.error("AI Analysis failed:", error);
@@ -162,7 +193,12 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
             price: parseFloat(formData.price) || 0,
             quantity: formData.quantity ? parseFloat(formData.quantity) : null,
             unitType: formData.unitType,
-            rating: formData.rating ? parseInt(formData.rating) : 0
+            rating: formData.rating ? parseInt(formData.rating) : 0,
+            cycle: {
+                onDays: formData.cycle.onDays ? parseInt(formData.cycle.onDays) : null,
+                offDays: formData.cycle.offDays ? parseInt(formData.cycle.offDays) : null,
+                startDate: formData.cycle.startDate || null
+            }
         };
 
         if (initialData) {
@@ -405,6 +441,51 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                     />
                 </div>
 
+                {/* Cycle Manager Config */}
+                <div className="rounded-lg border bg-card p-4">
+                    <label className="text-sm font-medium leading-none mb-3 block flex items-center gap-2">
+                        <Activity size={16} /> Cycle / Schedule (Optional)
+                    </label>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Days On</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className={inputClassName}
+                                placeholder="e.g. 5"
+                                value={formData.cycle?.onDays || ''}
+                                onChange={e => setFormData({ ...formData, cycle: { ...formData.cycle, onDays: e.target.value } })}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Days Off</label>
+                            <input
+                                type="number"
+                                min="0"
+                                className={inputClassName}
+                                placeholder="e.g. 2"
+                                value={formData.cycle?.offDays || ''}
+                                onChange={e => setFormData({ ...formData, cycle: { ...formData.cycle, offDays: e.target.value } })}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Start Date</label>
+                            <input
+                                type="date"
+                                className={inputClassName}
+                                value={formData.cycle?.startDate || ''}
+                                onChange={e => setFormData({ ...formData, cycle: { ...formData.cycle, startDate: e.target.value } })}
+                            />
+                        </div>
+                    </div>
+                    {(formData.cycle?.onDays && formData.cycle?.offDays) && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                            Cycle: {formData.cycle.onDays} days active, {formData.cycle.offDays} days break.
+                        </p>
+                    )}
+                </div>
+
                 <div>
                     <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block text-primary">Taking it for?</label>
                     <textarea
@@ -465,6 +546,15 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 readOnly
                             />
                         </div>
+
+                        {aiCycleRecommendation && (
+                            <div className="mt-3">
+                                <label className="text-xs font-medium text-blue-600 block mb-1">Cycle Recommendation</label>
+                                <div className={`${inputClassName} min-h-[40px] flex items-center bg-blue-50/50 text-blue-800 border-blue-200 text-sm`}>
+                                    {aiCycleRecommendation}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
