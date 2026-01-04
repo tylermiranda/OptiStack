@@ -821,11 +821,61 @@ app.delete('/api/ai/analysis-history/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Chat Sessions Endpoints
+
+// Get all chat sessions
+app.get('/api/ai/sessions', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM chat_sessions WHERE user_id = ? AND is_archived = 0 ORDER BY updated_at DESC',
+        [req.user.id], (err, rows) => {
+            if (err) return res.status(500).json({ error: 'Failed to fetch sessions' });
+            res.json(rows || []);
+        });
+});
+
+// Create new chat session
+app.post('/api/ai/sessions', authenticateToken, (req, res) => {
+    const { title } = req.body;
+    const sessionTitle = title || 'New Chat';
+
+    db.run('INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)',
+        [req.user.id, sessionTitle], function (err) {
+            if (err) return res.status(500).json({ error: 'Failed to create session' });
+            res.json({ id: this.lastID, title: sessionTitle, created_at: new Date().toISOString() });
+        });
+});
+
+// Rename chat session
+app.patch('/api/ai/sessions/:id', authenticateToken, (req, res) => {
+    const { title } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+
+    db.run('UPDATE chat_sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+        [title, req.params.id, req.user.id], function (err) {
+            if (err) return res.status(500).json({ error: 'Failed to update session' });
+            if (this.changes === 0) return res.status(404).json({ error: 'Session not found or unauthorized' });
+            res.json({ message: 'Session updated' });
+        });
+});
+
+// Delete chat session (soft delete via archive or hard delete)
+// For now, implementing hard delete to keep it simple as per request
+app.delete('/api/ai/sessions/:id', authenticateToken, (req, res) => {
+    // Due to CASCADE delete on foreign key, this will also delete messages
+    db.run('DELETE FROM chat_sessions WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id], function (err) {
+            if (err) return res.status(500).json({ error: 'Failed to delete session' });
+            if (this.changes === 0) return res.status(404).json({ error: 'Session not found or unauthorized' });
+            res.json({ message: 'Session deleted' });
+        });
+});
+
+// AI Chat Endpoints
+
 // AI Chat Endpoints
 
 // Chat with AI about supplements
 app.post('/api/ai/chat', authenticateToken, async (req, res) => {
-    const { message, model } = req.body;
+    const { message, model, sessionId } = req.body; // sessionId is optional (for now, but should be passed)
     const provider = await getAIProvider();
 
     if (!message || !message.trim()) {
@@ -844,6 +894,7 @@ app.post('/api/ai/chat', authenticateToken, async (req, res) => {
 
         console.log(`[AI Chat] Using provider: ${provider.type}`);
         console.log(`[AI Chat] Requested model: ${model}`);
+        console.log(`[AI Chat] Session ID: ${sessionId}`);
 
         // Fetch user's current supplements for context
         const supplements = await new Promise((resolve, reject) => {
@@ -854,10 +905,27 @@ app.post('/api/ai/chat', authenticateToken, async (req, res) => {
                 });
         });
 
-        // Fetch recent chat history for context
+        // Determine effective Session ID
+        let effectiveSessionId = sessionId;
+
+        // If no session ID, create one (or use most recent? Better to create new if explicit "new chat" wasn't handled by frontend)
+        // However, frontend should handle session creation. 
+        // If effectiveSessionId is missing, we must fail or auto-create.
+        // Let's auto-create if missing to be robust
+        if (!effectiveSessionId) {
+            effectiveSessionId = await new Promise((resolve, reject) => {
+                db.run('INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)',
+                    [req.user.id, message.substring(0, 30) + '...'], function (err) {
+                        if (err) reject(err);
+                        else resolve(this.lastID);
+                    });
+            });
+        }
+
+        // Fetch recent chat history for context (scoped to session)
         const chatHistory = await new Promise((resolve, reject) => {
-            db.all('SELECT role, content FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 10',
-                [req.user.id], (err, rows) => {
+            db.all('SELECT role, content FROM chat_history WHERE user_id = ? AND session_id = ? ORDER BY created_at DESC LIMIT 10',
+                [req.user.id, effectiveSessionId], (err, rows) => {
                     if (err) reject(err);
                     else resolve((rows || []).reverse());
                 });
@@ -904,12 +972,23 @@ ${supplementContext}`;
         console.log(`[AI Chat] Successful response from ${provider.type}`);
 
         // Save both messages to chat history
-        db.run('INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)',
-            [req.user.id, 'user', message]);
-        db.run('INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)',
-            [req.user.id, 'assistant', assistantMessage]);
+        db.run('INSERT INTO chat_history (user_id, session_id, role, content) VALUES (?, ?, ?, ?)',
+            [req.user.id, effectiveSessionId, 'user', message]);
+        db.run('INSERT INTO chat_history (user_id, session_id, role, content) VALUES (?, ?, ?, ?)',
+            [req.user.id, effectiveSessionId, 'assistant', assistantMessage]);
 
-        res.json({ message: assistantMessage });
+        // Smart Title Generation: Update session title if it's the first message or generic "New Chat"
+        // For simplicity, if history was empty before this, update title
+        if (chatHistory.length === 0) {
+            // Generate a short title from the first query (simple truncation for now, could use AI)
+            const newTitle = message.substring(0, 40) + (message.length > 40 ? '...' : '');
+            db.run('UPDATE chat_sessions SET title = ? WHERE id = ?', [newTitle, effectiveSessionId]);
+        }
+
+        // Update session timestamp
+        db.run('UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [effectiveSessionId]);
+
+        res.json({ message: assistantMessage, sessionId: effectiveSessionId });
 
     } catch (error) {
         console.error('AI Chat Error:', error);
@@ -918,21 +997,54 @@ ${supplementContext}`;
     }
 });
 
-// Get Chat History
+// Get Chat History (scoped to session)
 app.get('/api/ai/chat-history', authenticateToken, (req, res) => {
-    db.all('SELECT id, role, content, created_at FROM chat_history WHERE user_id = ? ORDER BY created_at ASC',
-        [req.user.id], (err, rows) => {
-            if (err) return res.status(500).json({ error: 'Failed to fetch chat history' });
-            res.json(rows || []);
-        });
+    const sessionId = req.query.sessionId; // Optional filter
+
+    let query = 'SELECT id, role, content, created_at FROM chat_history WHERE user_id = ?';
+    let params = [req.user.id];
+
+    if (sessionId) {
+        query += ' AND session_id = ?';
+        params.push(sessionId);
+    } else {
+        // If no session ID provided, maybe return nothing or all?
+        // Returning all mixed together is confusing. 
+        // Let's default to returning nothing if no session specified to force frontend to pick one
+        // OR return the most recent session's data if just opened? 
+        // For now, let's return messages with NULL session_id as "legacy" or return empty if stricter.
+        // Let's support legacy fetch for backward compatibility if needed, but optimally we want strict session.
+        // Actually, let's just return empty [] if no session specified as logic has changed.
+        // query += ' AND session_id IS NULL'; 
+    }
+
+    query += ' ORDER BY created_at ASC';
+
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Failed to fetch chat history' });
+        res.json(rows || []);
+    });
 });
 
-// Clear Chat History
+// Clear Chat History (Session specific or all?)
+// Renaming to DELETE session
+// Keeping legacy endpoint but making it clear distinct session or all
 app.delete('/api/ai/chat-history', authenticateToken, (req, res) => {
-    db.run('DELETE FROM chat_history WHERE user_id = ?', [req.user.id], function (err) {
-        if (err) return res.status(500).json({ error: 'Failed to clear chat history' });
-        res.json({ message: 'Chat history cleared' });
-    });
+    const sessionId = req.query.sessionId;
+
+    if (sessionId) {
+        // Clear specific session history
+        db.run('DELETE FROM chat_history WHERE user_id = ? AND session_id = ?', [req.user.id, sessionId], function (err) {
+            if (err) return res.status(500).json({ error: 'Failed to clear chat history' });
+            res.json({ message: 'Session chat history cleared' });
+        });
+    } else {
+        // Clear ALL history (Dangerous? acts as "Delete All Data")
+        db.run('DELETE FROM chat_history WHERE user_id = ?', [req.user.id], function (err) {
+            if (err) return res.status(500).json({ error: 'Failed to clear chat history' });
+            res.json({ message: 'All chat history cleared' });
+        });
+    }
 });
 
 // Stack Sharing Endpoints
@@ -1029,7 +1141,10 @@ app.get('/api/stacks/shared/:code', (req, res) => {
                 title: row.title,
                 description: row.description,
                 author: row.username || 'Anonymous',
-                supplements: JSON.parse(row.supplements_snapshot),
+                supplements: JSON.parse(row.supplements_snapshot).map(s => ({
+                    ...s,
+                    cycle: s.cycle || { onDays: null, offDays: null, startDate: null }
+                })),
                 viewCount: row.view_count + 1,
                 createdAt: row.created_at
             });
@@ -1266,8 +1381,15 @@ app.get('/api/supplements', authenticateToken, (req, res) => {
             aiAnalysis: s.ai_analysis,
             recommendedDosage: s.recommended_dosage,
             sideEffects: s.side_effects,
+            recommendedDosage: s.recommended_dosage,
+            sideEffects: s.side_effects,
             rating: s.rating,
-            archived: !!s.archived
+            archived: !!s.archived,
+            cycle: {
+                onDays: s.cycle_on_days,
+                offDays: s.cycle_off_days,
+                startDate: s.cycle_start_date
+            }
         }));
         res.json(supplements);
     });
@@ -1279,11 +1401,13 @@ app.post('/api/supplements', authenticateToken, (req, res) => {
     db.run(`INSERT INTO supplements (
         user_id, name, short_name, link, price, quantity, dosage, unit_type,
         schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
-        reason, ai_analysis, recommended_dosage, side_effects, rating, archived
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        reason, ai_analysis, recommended_dosage, side_effects, rating, archived,
+        cycle_on_days, cycle_off_days, cycle_start_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
         req.user.id, s.name, s.shortName, s.link, s.price, s.quantity, s.dosage, s.unitType || 'pills',
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
-        s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0
+        s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0,
+        s.cycle?.onDays || null, s.cycle?.offDays || null, s.cycle?.startDate || null
     ], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ id: this.lastID, ...s });
@@ -1297,11 +1421,13 @@ app.put('/api/supplements/:id', authenticateToken, (req, res) => {
     db.run(`UPDATE supplements SET 
         name = ?, short_name = ?, link = ?, price = ?, quantity = ?, dosage = ?, unit_type = ?,
         schedule_am = ?, schedule_pm = ?, schedule_am_pills = ?, schedule_pm_pills = ?,
-        reason = ?, ai_analysis = ?, recommended_dosage = ?, side_effects = ?, rating = ?, archived = ?
+        reason = ?, ai_analysis = ?, recommended_dosage = ?, side_effects = ?, rating = ?, archived = ?,
+        cycle_on_days = ?, cycle_off_days = ?, cycle_start_date = ?
         WHERE id = ? AND user_id = ?`, [
         s.name, s.shortName, s.link, s.price, s.quantity, s.dosage, s.unitType || 'pills',
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, s.archived ? 1 : 0,
+        s.cycle?.onDays || null, s.cycle?.offDays || null, s.cycle?.startDate || null,
         id, req.user.id
     ], function (err) {
         if (err) return res.status(500).json({ error: err.message });

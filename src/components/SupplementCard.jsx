@@ -11,8 +11,29 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
         return findSupplementResearch(supplement.name);
     }, [supplement.name]);
 
+    const cycleStatus = useMemo(() => {
+        if (!supplement.cycle?.onDays || !supplement.cycle?.offDays || !supplement.cycle?.startDate) return null;
+
+        const start = new Date(supplement.cycle.startDate);
+        const now = new Date();
+        const diffTime = now - start;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) return { isOn: true, daysRemaining: 0, dayInCycle: 1 }; // Future start date
+
+        const cycleLength = supplement.cycle.onDays + supplement.cycle.offDays;
+        const dayInCycle = diffDays % cycleLength;
+
+        const isOn = dayInCycle < supplement.cycle.onDays;
+        const daysRemaining = isOn
+            ? supplement.cycle.onDays - dayInCycle
+            : cycleLength - dayInCycle;
+
+        return { isOn, daysRemaining, dayInCycle: dayInCycle + 1 };
+    }, [supplement.cycle]);
+
     return (
-        <div className="rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md">
+        <div className={`rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md ${cycleStatus && !cycleStatus.isOn ? 'opacity-60 grayscale-[0.5]' : ''}`}>
             {/* Header: Name, Price, Actions, Toggle */}
             <div
                 className="flex flex-col xs:flex-row items-start xs:items-center justify-between p-4 sm:p-5 cursor-pointer gap-4"
@@ -20,6 +41,15 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
             >
                 <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-base sm:text-lg leading-tight tracking-tight">{supplement.name}</h3>
+                    {cycleStatus && (
+                        <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cycleStatus.isOn ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-600'}`}>
+                            {cycleStatus.isOn ? (
+                                <><Activity size={10} /> Day {cycleStatus.dayInCycle}</>
+                            ) : (
+                                <><Moon size={10} /> Paused ({cycleStatus.daysRemaining}d)</>
+                            )}
+                        </div>
+                    )}
                     <div className="flex flex-col gap-0.5 items-start">
                         <div className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground whitespace-nowrap">
                             <Tag size={10} className="mr-1 sm:size-[12px]" />
