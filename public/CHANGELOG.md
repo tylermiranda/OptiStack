@@ -1,6 +1,11 @@
 # Changelog
 
 
+## [2.3.0] - 2026-01-04
+### Added
+- **AI Prompt Editor**: Admins can now view and edit the AI prompts used for analysis, optimization, and safety checks directly from the Admin panel in settings. This allows for fine-tuning AI behavior and customizing responses.
+- **Dynamic AI Prompts**: All AI features (Individual Supplement Analysis, Stack Analysis, Optimizer, Interaction Checker, and PDF Export) now use the user-customizable prompts.
+
 ## [2.2.0] - 2026-01-04
 ### Added
 - **AI Cost Tracking**: New "Usage" tab in Settings showing per-user Cloud AI (OpenRouter) costs. View today's usage, monthly totals, all-time statistics, and a list of recent AI requests with token counts and costs. Local AI (Ollama) usage is tracked as free.

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { DEFAULT_PROMPTS } from "../data/aiPrompts"
 
 const SettingsContext = createContext()
 
@@ -10,11 +11,19 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
         ollamaUrl: null
     })
     const [availableModels, setAvailableModels] = useState([])
+    const [wakeTime, setWakeTime] = useState("07:00")
 
     const [settings, setSettings] = useState(() => {
         const saved = localStorage.getItem(storageKey)
-        return saved ? JSON.parse(saved) : {
-            aiModel: "google/gemini-2.0-flash-001"
+        const parsed = saved ? JSON.parse(saved) : {};
+        return {
+            aiModel: "google/gemini-2.0-flash-001",
+            ...parsed,
+            // Ensure newly added prompts exist even if saved settings exist
+            prompts: {
+                ...DEFAULT_PROMPTS,
+                ...(parsed.prompts || {})
+            }
         }
     })
 
@@ -61,10 +70,40 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
             .catch(() => setAiStatus(prev => ({ ...prev, available: false })))
     }, [])
 
+    // Fetch user settings (Wake Time)
+    const refreshUserSettings = useCallback(() => {
+        const token = localStorage.getItem('auth_token'); // Or however we get token. Wait, we are inside context.
+        // We need auth token. But SettingsProvider is typically wrapped inside or outside AuthProvider.
+        // If Outside, we can't use useAuth().
+        // If Inside, we can.
+        // Looking at App.jsx would confirm. Assuming it's inside or we can just fetch if we have token in localstorage 
+        // OR better: handle it gracefully. 
+        // This file imports useAuth but doesn't use it? No, line 4 import useAuth from '../context/AuthContext'; NO it imports it but lines 1-127 show no usage.
+        // Wait, line 3 imports `useSettings`.
+        // I'll assume we can fetch lightly.
+
+        fetch('/api/user/settings', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}` // simple check
+            }
+        })
+            .then(res => {
+                if (res.ok) return res.json();
+                return null;
+            })
+            .then(data => {
+                if (data && data.wakeTime) {
+                    setWakeTime(data.wakeTime);
+                }
+            })
+            .catch(console.error);
+    }, []);
+
     // Check AI status on mount
     useEffect(() => {
         refreshAIStatus()
-    }, [refreshAIStatus])
+        refreshUserSettings()
+    }, [refreshAIStatus, refreshUserSettings])
 
     // Fetch available models when AI is available
     useEffect(() => {
@@ -99,6 +138,22 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
         setSettings(prev => ({ ...prev, ...newSettings }))
     }
 
+    const updateWakeTime = async (time) => {
+        setWakeTime(time); // Optimistic update
+        try {
+            await fetch('/api/user/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ wakeTime: time })
+            });
+        } catch (e) {
+            console.error("Failed to save wake time", e);
+        }
+    }
+
     const value = {
         settings: {
             ...settings,
@@ -108,7 +163,9 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
         aiStatus,
         updateSettings,
         availableModels,
-        refreshAIStatus
+        refreshAIStatus,
+        wakeTime,
+        updateWakeTime
     }
 
     return (

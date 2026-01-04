@@ -1,15 +1,38 @@
 import React, { useState, useMemo } from 'react';
-import { ExternalLink, Star, Tag, AlertTriangle, Sparkles, User, Beaker, Pencil, Sun, Moon, ChevronDown, ChevronUp, Trash2, Archive, ArchiveRestore, FlaskConical, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, Star, Tag, AlertTriangle, Sparkles, User, Beaker, Pencil, Sun, Moon, ChevronDown, ChevronUp, Trash2, Archive, ArchiveRestore, FlaskConical, CheckCircle2, Clock, Activity } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
 import { findSupplementResearch } from '../data/supplementResearch';
 
+import { useSettings } from './SettingsContext';
+
 const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const { wakeTime } = useSettings();
 
     // Lookup research data for this supplement
     const research = useMemo(() => {
         return findSupplementResearch(supplement.name);
     }, [supplement.name]);
+
+    const timingInfo = useMemo(() => {
+        if (supplement.timing?.type === 'relative_wake' && wakeTime) {
+            const [wh, wm] = wakeTime.split(':').map(Number);
+            const offset = supplement.timing.offsetMinutes || 0;
+            const totalMinutes = (wh * 60) + wm + offset;
+
+            const h = Math.floor(totalMinutes / 60) % 24;
+            const m = totalMinutes % 60;
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const dh = h % 12 || 12;
+            const dm = m < 10 ? `0${m}` : m;
+
+            return {
+                text: `${dh}:${dm} ${ampm}`,
+                detail: offset === 0 ? 'Upon Waking' : `${Math.floor(offset / 60)}h ${offset % 60}m after wake`
+            };
+        }
+        return null;
+    }, [supplement.timing, wakeTime]);
 
     const cycleStatus = useMemo(() => {
         if (!supplement.cycle?.onDays || !supplement.cycle?.offDays || !supplement.cycle?.startDate) return null;
@@ -158,6 +181,18 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
                                     <div className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
                                         <Moon size={12} /> {supplement.schedule.pmPills} {supplement.unitType === 'pills' ? 'pills' : supplement.unitType} PM
                                     </div>
+                                )}
+                                {timingInfo && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="cursor-help inline-flex items-center gap-1 rounded-md bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700 ring-1 ring-inset ring-teal-700/10">
+                                                <Clock size={12} /> {timingInfo.text}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{timingInfo.detail}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 )}
                             </div>
                         </div>

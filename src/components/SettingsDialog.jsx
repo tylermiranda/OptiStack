@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from "./ui/switch"
 import { Label } from "./ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { Bot, AlertTriangle, Info, Cloud, Server, CheckCircle2, XCircle, Loader2, RefreshCw, Settings, Shield, DollarSign, Ban } from 'lucide-react';
+import { Bot, AlertTriangle, Info, Cloud, Server, CheckCircle2, XCircle, Loader2, RefreshCw, Settings, Shield, DollarSign, Ban, Activity, Clock } from 'lucide-react';
 
 // Lazy load AdminDashboard to avoid bloating the bundle for non-admins
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
@@ -13,7 +13,7 @@ const AdminDashboard = lazy(() => import('./AdminDashboard'));
 const AICostDisplay = lazy(() => import('./AICostDisplay').then(m => ({ default: m.AICostDisplay })));
 
 export function SettingsDialog({ open, onOpenChange }) {
-    const { settings, aiStatus, updateSettings, availableModels, refreshAIStatus } = useSettings();
+    const { settings, aiStatus, updateSettings, availableModels, refreshAIStatus, wakeTime, updateWakeTime } = useSettings();
     const { token, user } = useAuth();
 
     const [aiConfig, setAiConfig] = useState({
@@ -209,7 +209,7 @@ export function SettingsDialog({ open, onOpenChange }) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`${activeTab === 'admin' ? 'sm:max-w-4xl' : 'sm:max-w-[600px]'} max-h-[95vh] overflow-y-auto transition-all duration-300`}>
+            <DialogContent className={`${activeTab === 'admin' ? 'sm:max-w-4xl' : 'sm:max-w-2xl'} max-h-[95vh] overflow-y-auto transition-all duration-300`}>
                 <DialogHeader>
                     <DialogTitle>Settings</DialogTitle>
                     <DialogDescription>
@@ -218,21 +218,35 @@ export function SettingsDialog({ open, onOpenChange }) {
                 </DialogHeader>
 
                 <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className={`grid w-full grid-cols-${1 + (isAIEnabled ? 1 : 0) + (isAdmin ? 1 : 0)} mb-4`}>
-                        <TabsTrigger value="general" className="flex items-center gap-2">
-                            <Settings size={16} /> General
-                        </TabsTrigger>
-                        {isAIEnabled && (
-                            <TabsTrigger value="usage" className="flex items-center gap-2">
-                                <DollarSign size={16} /> Usage
-                            </TabsTrigger>
-                        )}
-                        {isAdmin && (
-                            <TabsTrigger value="admin" className="flex items-center gap-2">
-                                <Shield size={16} /> Admin
-                            </TabsTrigger>
-                        )}
-                    </TabsList>
+                    {(() => {
+                        const colCount = 2 + (isAIEnabled ? 1 : 0) + (isAdmin ? 1 : 0);
+                        const gridClass = {
+                            2: 'grid-cols-2',
+                            3: 'grid-cols-3',
+                            4: 'grid-cols-4'
+                        }[colCount];
+
+                        return (
+                            <TabsList className={`grid w-full ${gridClass} mb-4`}>
+                                <TabsTrigger value="general" className="flex items-center gap-2">
+                                    <Settings size={16} /> General
+                                </TabsTrigger>
+                                {isAIEnabled && (
+                                    <TabsTrigger value="usage" className="flex items-center gap-2">
+                                        <DollarSign size={16} /> Usage
+                                    </TabsTrigger>
+                                )}
+                                <TabsTrigger value="biohacking" className="flex items-center gap-2">
+                                    <Activity size={16} /> Bio-Hacking
+                                </TabsTrigger>
+                                {isAdmin && (
+                                    <TabsTrigger value="admin" className="flex items-center gap-2">
+                                        <Shield size={16} /> Admin
+                                    </TabsTrigger>
+                                )}
+                            </TabsList>
+                        );
+                    })()}
 
                     <TabsContent value="general" className="space-y-6">
                         <div className="grid gap-6 py-4">
@@ -474,6 +488,37 @@ export function SettingsDialog({ open, onOpenChange }) {
                             </Suspense>
                         </TabsContent>
                     )}
+
+                    <TabsContent value="biohacking" className="space-y-6">
+                        <div className="grid gap-6 py-4">
+                            <div className="space-y-4">
+                                <Label className="text-base font-semibold flex items-center gap-2">
+                                    <Clock size={16} /> Circadian Rhythm
+                                </Label>
+                                <div className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="wake-time">Average Wake Time</Label>
+                                        <div className="flex gap-4 items-center">
+                                            <input
+                                                id="wake-time"
+                                                type="time"
+                                                className={inputClassName}
+                                                value={wakeTime}
+                                                onChange={(e) => updateWakeTime(e.target.value)}
+                                            />
+                                            <p className="text-sm text-muted-foreground">
+                                                Used to calculate relative supplement timing (e.g. "Take 2 hours after waking").
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100 text-blue-900 text-sm">
+                                    <strong>Why track this?</strong> Aligning supplements with your circadian rhythm (Cortisol Awakening Response) can improve efficacy.
+                                </div>
+                            </div>
+                        </div>
+                    </TabsContent>
 
                     {isAdmin && (
                         <TabsContent value="admin">

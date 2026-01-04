@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit';
 import db from './database.js';
 import multer from 'multer';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,10 +19,14 @@ const DISABLE_AUTH = process.env.DISABLE_AUTH === 'true';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET;
+
+// JWT Secret Management
+let JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    console.error('FATAL: JWT_SECRET environment variable is required');
-    process.exit(1);
+    console.warn('⚠️  WARNING: JWT_SECRET not found in environment.');
+    console.warn('   Generating a random secret for this session.');
+    console.warn('   Sessions and tokens will be invalidated on server restart.');
+    JWT_SECRET = crypto.randomBytes(64).toString('hex');
 }
 
 // Log Buffer Implementation
@@ -76,10 +81,12 @@ app.use('/api/login', authLimiter);
 app.use('/api/register', authLimiter);
 app.use('/api/scrape', scrapeLimiter);
 
-const SESSION_SECRET = process.env.SESSION_SECRET;
+// Session Secret Management
+let SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET) {
-    console.error('FATAL: SESSION_SECRET environment variable is required');
-    process.exit(1);
+    console.warn('⚠️  WARNING: SESSION_SECRET not found in environment.');
+    console.warn('   Generating a random secret for this session.');
+    SESSION_SECRET = crypto.randomBytes(64).toString('hex');
 }
 
 app.use(session({
@@ -299,6 +306,34 @@ app.post('/api/admin/settings', authenticateToken, requireAdmin, (req, res) => {
             res.json({ message: 'Settings saved' });
         });
     });
+});
+
+// User Settings Routes
+// Get User Settings (Wake Time)
+app.get('/api/user/settings', authenticateToken, (req, res) => {
+    db.get('SELECT wake_time FROM users WHERE id = ?', [req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json({ wakeTime: row?.wake_time || '07:00' });
+    });
+});
+
+// Update User Settings (Wake Time)
+app.post('/api/user/settings', authenticateToken, (req, res) => {
+    const { wakeTime } = req.body;
+
+    // Basic validation for HH:MM format
+    if (wakeTime && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(wakeTime)) {
+        return res.status(400).json({ error: 'Invalid time format (HH:MM required)' });
+    }
+
+    if (wakeTime) {
+        db.run('UPDATE users SET wake_time = ? WHERE id = ?', [wakeTime, req.user.id], function (err) {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json({ message: 'Settings saved', wakeTime });
+        });
+    } else {
+        res.json({ message: 'No changes' });
+    }
 });
 
 
@@ -1569,6 +1604,10 @@ app.get('/api/supplements', authenticateToken, (req, res) => {
                 onDays: s.cycle_on_days,
                 offDays: s.cycle_off_days,
                 startDate: s.cycle_start_date
+            },
+            timing: {
+                type: s.timing_type || 'fixed', // 'fixed', 'relative_wake', 'relative_sleep'
+                offsetMinutes: s.timing_offset_minutes || 0
             }
         }));
         res.json(supplements);
@@ -1581,13 +1620,17 @@ app.post('/api/supplements', authenticateToken, (req, res) => {
     db.run(`INSERT INTO supplements (
         user_id, name, short_name, link, price, quantity, dosage, unit_type,
         schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
+        schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
         reason, ai_analysis, recommended_dosage, side_effects, rating, archived,
-        cycle_on_days, cycle_off_days, cycle_start_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        cycle_on_days, cycle_off_days, cycle_start_date,
+        timing_type, timing_offset_minutes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
         req.user.id, s.name, s.shortName, s.link, s.price, s.quantity, s.dosage, s.unitType || 'pills',
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0,
-        s.cycle?.onDays || null, s.cycle?.offDays || null, s.cycle?.startDate || null
+        s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0,
+        s.cycle?.onDays || null, s.cycle?.offDays || null, s.cycle?.startDate || null,
+        s.timing?.type || 'fixed', s.timing?.offsetMinutes || 0
     ], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ id: this.lastID, ...s });
@@ -1602,12 +1645,14 @@ app.put('/api/supplements/:id', authenticateToken, (req, res) => {
         name = ?, short_name = ?, link = ?, price = ?, quantity = ?, dosage = ?, unit_type = ?,
         schedule_am = ?, schedule_pm = ?, schedule_am_pills = ?, schedule_pm_pills = ?,
         reason = ?, ai_analysis = ?, recommended_dosage = ?, side_effects = ?, rating = ?, archived = ?,
-        cycle_on_days = ?, cycle_off_days = ?, cycle_start_date = ?
+        cycle_on_days = ?, cycle_off_days = ?, cycle_start_date = ?,
+        timing_type = ?, timing_offset_minutes = ?
         WHERE id = ? AND user_id = ?`, [
         s.name, s.shortName, s.link, s.price, s.quantity, s.dosage, s.unitType || 'pills',
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, s.archived ? 1 : 0,
         s.cycle?.onDays || null, s.cycle?.offDays || null, s.cycle?.startDate || null,
+        s.timing?.type || 'fixed', s.timing?.offsetMinutes || 0,
         id, req.user.id
     ], function (err) {
         if (err) return res.status(500).json({ error: err.message });

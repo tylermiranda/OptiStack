@@ -2,6 +2,14 @@
 
 A Docker-deployable web application for managing your supplement and medication stack with seeking, tracking, and OIDC authentication support.
 
+## Why I Built This
+
+As someone interested in biohacking and optimizing my own biology, my supplement stack eventually grew from a daily multivitamin into a complex protocol of specific compounds, timings, and cycling schedules. I found myself juggling messy spreadsheets, mental checklists, and random notes just to keep track of it all.
+
+I built OptiStack to help with this. I wanted something that felt personal and handled the "cognitive load" of self-optimization—tracking inventory, checking for negative interactions, and helping me stay consistent. This project is my solution for bringing order to the chaos of managing a serious health protocol. I hope you find it useful!
+
+> **Disclaimer: As with any biohacking tool, use at your own risk. I am not a doctor and this tool should not be used as a substitute for medical advice. Always consult with a healthcare professional before starting any new health protocol. Recognize that AI is not a substitute for medical advice and should not be used as a substitute for medical advice. AI can make mistakes and always double-check any recommendations with a healthcare professional or your own research.**
+
 <details>
 <summary>📸 Screenshots</summary>
 
@@ -70,14 +78,14 @@ docker compose up -d
 
 Edit `.env` with your configuration:
 
-**Required secrets** — Generate secure random values for these:
+**Recommended secrets** — If not provided, random secrets will be generated at startup (invalidating sessions on restart, requiring re-login):
 ```bash
 # Run this command twice, once for each secret
 openssl rand -base64 48
 ```
 
-- `JWT_SECRET` — Signs authentication tokens. If compromised, attackers could forge login sessions.
-- `SESSION_SECRET` — Signs session cookies. Keeps user sessions secure between requests.
+- `JWT_SECRET` — Signs authentication tokens.
+- `SESSION_SECRET` — Signs session cookies.
 
 **Admin user** — Set `ADMIN_PASSWORD` for the default admin account (username defaults to `admin`).
 
@@ -91,8 +99,8 @@ On first startup, a default admin user is created:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `JWT_SECRET` | ✅ | - | Secret key for JWT token signing |
-| `SESSION_SECRET` | ✅ | - | Secret key for session encryption |
+| `JWT_SECRET` | ⚠️ | Auto-generated | Secret for tokens. Set manually for persistent sessions. |
+| `SESSION_SECRET` | ⚠️ | Auto-generated | Secret for cookies. Set manually for persistent sessions. |
 | `ADMIN_PASSWORD` | ✅* | - | Password for default admin user |
 | `ADMIN_USERNAME` | ❌ | `admin` | Username for default admin user |
 | `AI_PROVIDER` | ❌ | `openrouter` | AI provider: `openrouter` (cloud) or `ollama` (local) |
@@ -111,37 +119,46 @@ On first startup, a default admin user is created:
 
 *If `ADMIN_PASSWORD` is not set, the first user to register will become admin.
 
+### Single User Mode (Disable Authentication)
+
+You can set `DISABLE_AUTH=true` in your `.env` file to bypass the login screen. This enables "Single User Mode", where the default user has full admin privileges automatically.
+
+**Recommended Scenarios:**
+1. **Private Local Network**: Hosting on a secure home server (e.g., Unraid, Raspberry Pi) accessible only by you.
+2. **Reverse Proxy Auth**: Using a service like Authelia or Authentik upstream to handle security, avoiding a "double login".
+3. **Kiosk / Dashboard**: Displaying the app permanently on a wall-mounted tablet or smart display.
+
+> **⚠️ Security Warning**: Never enable this if your instance is exposed directly to the public internet.
+
 ## Features
 
-- 🔐 Admin dashboard for user and settings management
-- 💊 Weekly Refill Assistant: Interactive checklist for easy pill organizer filling
+- 🔐 **Admin Dashboard**: Comprehensive user management and system settings
+- 💊 **Weekly Refill Assistant**: Interactive checklist for easy pill organizer filling
 - ⚖️ **Volume-based Costing**: Support for supplements by weight (grams, oz) or volume (ml) with accurate cost-per-day calculations
-- 📄 **Comprehensive Doctor Report**: Export your daily supplement protocol + AI safety analysis to a professional PDF
-- 📑 **Export AI Analysis**: Save your AI-powered interaction check results as a PDF report
-- 📱 Mobile-optimized UI with safe-area support for iOS
-- 🚀 PWA support for "Add to Home Screen" on iPhone/iPad
-- ℹ️ **Smart Tooltips**: Enhanced interface with informative tooltips for actions and features
-- 💬 **AI Chat Assistant**: Conversational AI for discussing supplements, checking interactions, and getting personalized recommendations
-- 🧬 **Bioavailability Tips**: Each supplement shows absorption tips—what to take with, what to avoid, and timing recommendations
-- 📋 **Stack Templates**: Browse curated supplement stacks for performance, sleep, focus, and longevity goals
-- 👤 **Influencer Stacks**: Pre-built templates from Andrew Huberman, Peter Attia, and more with source attribution
-- 🔗 **Public Stack Sharing**: Generate shareable links for your stack that anyone can view and import
-- 🩺 **Interaction Checker**: AI-powered safety check to identify potential negative interactions in your stack
-- 🧠 **Stack Optimizer**: AI-powered suggestions for missing cofactors and complementary supplements
-- 📊 **AI Analysis History**: Automatically saves every AI stack analysis for future reference with full details and timestamps
-- 💾 **Data Backup & Restore**: Securely backup your database and restore it with a single click
-- 👤 **Single User Mode**: Optional mode to disable authentication for personal use or external auth
-- 💰 **AI Cost Tracking**: Monitor your Cloud AI usage and costs per user in Settings → Usage
-- 🤖 AI-powered supplement analysis (optional)
+- 📄 **Comprehensive Doctor Report**: Export your daily supplement protocol to a professional PDF (with optional AI safety analysis)
+- 📱 **Mobile-Optimized**: Responsive layout with safe-area support for iOS devices
+- 🚀 **PWA Support**: Install to home screen on iPhone/Android for a native app experience
+- ℹ️ **Smart Tooltips**: Enhanced interface with informative tooltips
+- 🧬 **Bioavailability Tips**: Absorption tips, timing recommendations, and food guidance for 20+ common supplements
+- 📋 **Stack Templates**: curated stacks for performance, sleep, focus, and longevity
+- 👤 **Influencer Stacks**: Pre-built templates from health experts with source attribution
+- 🔗 **Public Stack Sharing**: Generate shareable links for your stack
+- 💾 **Data Backup & Restore**: Securely backup and restore your database
+- 👤 **Single User Mode**: Optional mode to disable authentication for personal use
 
 ## AI Features (Optional)
 
-OptiStack includes optional AI-powered features for analyzing supplements and your full stack:
+OptiStack includes powerful AI features powered by **OpenRouter** (Cloud) or **Ollama** (Local):
 
-- **AI Chat Assistant**: Have a conversation with AI about your supplements. Ask about interactions, get recommendations for specific health goals (e.g., "what supplements help with athletic performance?"), and evaluate potential additions to your stack.
-- **Supplement Analysis**: Get AI-generated summaries, recommended dosages, side effects, and optimal timing
-- **Stack Analysis**: Analyze your entire supplement protocol for synergies, benefits, and potential interactions
-- **Stack Optimizer**: Get proactive recommendations for missing cofactors and complementary supplements (e.g., K2 with D3, Copper with Zinc)
+- 💬 **AI Chat Assistant**: Conversational AI for checking interactions, getting recommendations, and evaluating new supplements
+- 🩺 **Interaction Checker**: Analyze your stack for negative interactions and safety warnings
+- 🧠 **Stack Optimizer**: Get suggestions for missing cofactors (e.g., K2 with D3) and complementary supplements
+- 🔍 **Supplement Analysis**: Get AI-generated summaries, recommended dosages, side effects, and optimal timing for any supplement
+- 📊 **Stack Analysis**: Analyze your entire protocol for synergies, benefits, and risks
+- 📑 **Export AI Analysis**: Save interaction check results as a PDF report
+- 📜 **AI Analysis History**: Automatically saves every analysis for future reference
+- ✏️ **AI Prompt Editor**: Admins can customize the exact prompts used for all AI features
+- 💰 **AI Cost Tracking**: Monitor token usage and costs per user (for Cloud AI) 
 
 ### Cloud AI (OpenRouter)
 
