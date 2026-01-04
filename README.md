@@ -39,25 +39,13 @@ I built OptiStack to help with this. I wanted something that felt personal and h
 
 **Desktop**
 
-![Desktop Dashboard](public/screenshots/SCR-20260101-rnfu.png)
+| | |
+|:---:|:---:|
+| <img src="public/screenshots/SCR-20260101-rnfu.png" width="400" /> | <img src="public/screenshots/SCR-20260104-pgsl.png" width="400" /> |
+| <img src="public/screenshots/SCR-20260104-pgvh.png" width="400" /> | <img src="public/screenshots/SCR-20260104-pgxt.png" width="400" /> |
+| <img src="public/screenshots/SCR-20260104-phaz.png" width="400" /> | <img src="public/screenshots/SCR-20260104-phea.png" width="400" /> |
+| <img src="public/screenshots/SCR-20260101-rnur.png" width="400" /> | |
 
-**Mobile**
-
-<p align="center">
-  <img src="public/screenshots/SCR-20260101-rnon.png" width="300" alt="Mobile Dashboard">
-</p>
-
-### Add Supplement Form
-
-**Desktop**
-
-![Add Supplement Desktop](public/screenshots/SCR-20260101-rnur.png)
-
-**Mobile**
-
-<p align="center">
-  <img src="public/screenshots/SCR-20260101-rnww.png" width="300" alt="Add Supplement Mobile">
-</p>
 
 </details>
 
