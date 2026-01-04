@@ -25,36 +25,39 @@ const StackOptimizer = ({ supplements, onAddSupplement }) => {
             return `${s.name} (${s.dosage}${timing.length ? ', ' + timing.join('/') : ''})`;
         }).join('\n- ');
 
-        const prompt = `
-            You are a supplement optimization expert. Analyze this supplement stack and suggest MISSING COFACTORS or complementary supplements that would enhance absorption, effectiveness, or address common deficiency pairings.
+        let promptTemplate = settings.prompts?.stack_optimizer;
+        if (!promptTemplate) {
+            promptTemplate = `You are a supplement optimization expert. Analyze this supplement stack and suggest MISSING COFACTORS or complementary supplements that would enhance absorption, effectiveness, or address common deficiency pairings.
 
-            CURRENT STACK:
-            - ${stackList}
+CURRENT STACK:
+- \${stackList}
 
-            For each recommendation, provide:
-            1. name: The supplement name (generic, not brand)
-            2. reason: A concise explanation of why it complements the existing stack (1-2 sentences)
-            3. priority: "ESSENTIAL" (critical cofactor), "RECOMMENDED" (notable benefit), or "OPTIONAL" (nice-to-have)
-            4. dosage_suggestion: A typical daily dosage range
+For each recommendation, provide:
+1. name: The supplement name (generic, not brand)
+2. reason: A concise explanation of why it complements the existing stack (1-2 sentences)
+3. priority: "ESSENTIAL" (critical cofactor), "RECOMMENDED" (notable benefit), or "OPTIONAL" (nice-to-have)
+4. dosage_suggestion: A typical daily dosage range
 
-            Rules:
-            - Do NOT recommend supplements already in the stack
-            - Focus on scientifically-backed synergies (e.g., Vitamin D + K2, Zinc + Copper, Iron + Vitamin C)
-            - Maximum 5 suggestions, ordered by priority
-            - Return a JSON object with key "recommendations" containing an array
+Rules:
+- Do NOT recommend supplements already in the stack
+- Focus on scientifically-backed synergies (e.g., Vitamin D + K2, Zinc + Copper, Iron + Vitamin C)
+- Maximum 5 suggestions, ordered by priority
+- Return a JSON object with key "recommendations" containing an array
 
-            Example response format:
-            {
-                "recommendations": [
-                    {
-                        "name": "Vitamin K2 (MK-7)",
-                        "reason": "Essential cofactor for Vitamin D3. Directs calcium to bones instead of arteries.",
-                        "priority": "ESSENTIAL",
-                        "dosage_suggestion": "100-200mcg daily"
-                    }
-                ]
-            }
-        `;
+Example response format:
+{
+    "recommendations": [
+        {
+            "name": "Vitamin K2 (MK-7)",
+            "reason": "Essential cofactor for Vitamin D3. Directs calcium to bones instead of arteries.",
+            "priority": "ESSENTIAL",
+            "dosage_suggestion": "100-200mcg daily"
+        }
+    ]
+}`;
+        }
+
+        const prompt = promptTemplate.replace(/\${stackList}/g, stackList);
 
         try {
             const response = await fetch("/api/ai/analyze", {

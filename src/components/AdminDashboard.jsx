@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Shield, ShieldAlert, ShieldCheck, Save, Users, Settings, Database, FileText, RefreshCw, Pause, Play, Search, Filter } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, Save, Users, Settings, Database, FileText, RefreshCw, Pause, Play, Search, Filter, Code, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from "./ui/alert";
+
+const AIPromptManager = lazy(() => import('./AIPromptManager'));
 
 const AdminDashboard = () => {
     const { token } = useAuth();
@@ -21,8 +23,10 @@ const AdminDashboard = () => {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        fetchUsers();
-        fetchSettings();
+        if (token) {
+            fetchUsers();
+            fetchSettings();
+        }
     }, [token]);
 
     const fetchUsers = async () => {
@@ -108,6 +112,7 @@ const AdminDashboard = () => {
                 <TabsList>
                     <TabsTrigger value="users" className="flex gap-2"><Users size={16} /> User Management</TabsTrigger>
                     <TabsTrigger value="settings" className="flex gap-2"><Settings size={16} /> OIDC Configuration</TabsTrigger>
+                    <TabsTrigger value="prompts" className="flex gap-2"><Code size={16} /> AI Prompts</TabsTrigger>
                     <TabsTrigger value="maintenance" className="flex gap-2"><Database size={16} /> Maintenance</TabsTrigger>
                     <TabsTrigger value="logs" className="flex gap-2"><FileText size={16} /> System Logs</TabsTrigger>
                 </TabsList>
@@ -258,6 +263,12 @@ const AdminDashboard = () => {
                             </div>
                         </form>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="prompts">
+                    <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}>
+                        <AIPromptManager />
+                    </Suspense>
                 </TabsContent>
 
                 <TabsContent value="maintenance">

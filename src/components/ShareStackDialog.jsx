@@ -165,11 +165,16 @@ const ShareStackDialog = ({ open, onOpenChange, supplements }) => {
 
                     // Fetch Analysis
                     const fullStackNames = supplements.filter(s => !s.archived).map(s => s.name);
-                    const prompt = `
-                        Analyze this supplement stack strictly for NEGATIVE INTERACTIONS and SAFETY WARNINGS.
-                        STACK: ${fullStackNames.join(', ')}
-                        Provide the response in JSON format with keys: "interactions" (array of objects with severity, substances, description) and "summary".
-                    `;
+                    const stackList = fullStackNames.join(', ');
+
+                    let promptTemplate = settings.prompts?.doctor_export_safety;
+                    if (!promptTemplate) {
+                        promptTemplate = `Analyze this supplement stack strictly for NEGATIVE INTERACTIONS and SAFETY WARNINGS.
+STACK: \${stackList}
+Provide the response in JSON format with keys: "interactions" (array of objects with severity, substances, description) and "summary".`;
+                    }
+
+                    const prompt = promptTemplate.replace(/\${stackList}/g, stackList);
 
                     const response = await fetch("/api/ai/analyze", {
                         method: "POST",

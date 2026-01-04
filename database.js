@@ -108,6 +108,24 @@ function initDb() {
                             db.run("ALTER TABLE supplements ADD COLUMN cycle_off_days INTEGER");
                             db.run("ALTER TABLE supplements ADD COLUMN cycle_start_date TEXT");
                         }
+
+                        const hasTimingType = rows.some(r => r.name === 'timing_type');
+                        if (!hasTimingType) {
+                            console.log('Migrating database: Adding timing columns to supplements...');
+                            db.run("ALTER TABLE supplements ADD COLUMN timing_type TEXT DEFAULT 'fixed'");
+                            db.run("ALTER TABLE supplements ADD COLUMN timing_offset_minutes INTEGER DEFAULT 0");
+                        }
+                    }
+                });
+
+                // Check for wake_time in users table
+                db.all("PRAGMA table_info(users)", (err, rows) => {
+                    if (!err && rows) {
+                        const hasWakeTime = rows.some(r => r.name === 'wake_time');
+                        if (!hasWakeTime) {
+                            console.log('Migrating database: Adding wake_time to users...');
+                            db.run("ALTER TABLE users ADD COLUMN wake_time TEXT DEFAULT '07:00'");
+                        }
                     }
                 });
 

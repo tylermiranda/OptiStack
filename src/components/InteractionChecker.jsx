@@ -53,20 +53,25 @@ export function InteractionChecker({ open, onOpenChange, supplements }) {
             return;
         }
 
-        const prompt = `
-            Analyze this supplement stack strictly for NEGATIVE INTERACTIONS and SAFETY WARNINGS.
-            
-            STACK: 
-            ${fullStack.join(', ')}
+        const stackList = fullStack.join(', ');
 
-            Provide the response in STRICT JSON format. Do not include any markdown formatting, code blocks, or explanations outside the JSON.
-            
-            Key requirements:
-            - Return ONLY a valid JSON object.
-            - Keys: "interactions" (array) and "summary" (string).
-            - "interactions" items: { "severity": "HIGH"/"MODERATE"/"LOW", "substances": ["name1", "name2"], "description": "text" }
-            - If no interactions, return empty array for "interactions".
-        `;
+        let promptTemplate = settings.prompts?.interaction_checker;
+        if (!promptTemplate) {
+            promptTemplate = `Analyze this supplement stack strictly for NEGATIVE INTERACTIONS and SAFETY WARNINGS.
+
+STACK: 
+\${stackList}
+
+Provide the response in STRICT JSON format. Do not include any markdown formatting, code blocks, or explanations outside the JSON.
+
+Key requirements:
+- Return ONLY a valid JSON object.
+- Keys: "interactions" (array) and "summary" (string).
+- "interactions" items: { "severity": "HIGH"/"MODERATE"/"LOW", "substances": ["name1", "name2"], "description": "text" }
+- If no interactions, return empty array for "interactions".`;
+        }
+
+        const prompt = promptTemplate.replace(/\${stackList}/g, stackList);
 
         try {
             const response = await fetch("/api/ai/analyze", {

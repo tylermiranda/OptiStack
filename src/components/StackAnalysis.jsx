@@ -39,28 +39,51 @@ const StackAnalysis = ({ supplements }) => {
         setError(null);
 
         // Prepare data for AI
-        const morningStack = supplements.filter(s => s.schedule?.am).map(s => `${s.name} (${s.schedule.amPills || 1} pills)`);
-        const nightStack = supplements.filter(s => s.schedule?.pm).map(s => `${s.name} (${s.schedule.pmPills || 1} pills)`);
-        const otherStack = supplements.filter(s => !s.schedule?.am && !s.schedule?.pm).map(s => s.name);
+        const morningStack = supplements.filter(s => s.schedule?.am && s.timing?.type !== 'relative_wake').map(s => `${s.name} (${s.schedule.amPills || 1} pills)`);
+        const nightStack = supplements.filter(s => s.schedule?.pm && s.timing?.type !== 'relative_wake').map(s => `${s.name} (${s.schedule.pmPills || 1} pills)`);
 
-        const prompt = `
-            Analyze this daily supplement protocol:
-            
-            MORNING PROTOCOL:
-            ${morningStack.length > 0 ? morningStack.join(', ') : 'None'}
-            
-            NIGHT PROTOCOL:
-            ${nightStack.length > 0 ? nightStack.join(', ') : 'None'}
-            
-            OTHER SUPPLEMENTS (No specific time):
-            ${otherStack.length > 0 ? otherStack.join(', ') : 'None'}
-            
-            Please provide a comprehensive analysis in JSON format with the following keys:
-            - "benefits": (Array of strings) Key expected health benefits of this specific combination.
-            - "synergies": (Array of strings) How these specific supplements work well together (e.g. Vit D and Magnesium).
-            - "potential_risks": (Array of strings) Negative interactions or timing issues (e.g. taking energizing things at night).
-            - "summary": (String) A 2-3 sentence overall assessment of this stack's goal and effectiveness.
-        `;
+        // Relative timing supplements
+        const relativeStack = supplements.filter(s => s.timing?.type === 'relative_wake').map(s => {
+            const offset = s.timing.offsetMinutes || 0;
+            const timeDesc = offset === 0 ? "Upon waking" : `${Math.floor(offset / 60)}h ${offset % 60}m after waking`;
+            return `${s.name} (${timeDesc})`;
+        });
+
+        const otherStack = supplements.filter(s => !s.schedule?.am && !s.schedule?.pm && s.timing?.type !== 'relative_wake').map(s => s.name);
+
+        const morningStr = morningStack.length > 0 ? morningStack.join(', ') : 'None';
+        const nightStr = nightStack.length > 0 ? nightStack.join(', ') : 'None';
+        const relativeStr = relativeStack.length > 0 ? relativeStack.join(', ') : 'None';
+        const otherStr = otherStack.length > 0 ? otherStack.join(', ') : 'None';
+
+        let promptTemplate = settings.prompts?.stack_analysis;
+        if (!promptTemplate) {
+            promptTemplate = `Analyze this daily supplement protocol:
+
+MORNING PROTOCOL (Fixed Time):
+\${morningStack}
+
+NIGHT PROTOCOL (Fixed Time):
+\${nightStack}
+
+BIO-RHYTHM OPTIMIZED (Relative to Wake Time):
+\${relativeStack}
+
+OTHER SUPPLEMENTS (No specific time):
+\${otherStack}
+
+Please provide a comprehensive analysis in JSON format with the following keys:
+- "benefits": (Array of strings) Key expected health benefits of this specific combination.
+- "synergies": (Array of strings) How these specific supplements work well together (e.g. Vit D and Magnesium).
+- "potential_risks": (Array of strings) Negative interactions or timing issues (e.g. taking energizing things at night).
+- "summary": (String) A 2-3 sentence overall assessment of this stack's goal and effectiveness.`;
+        }
+
+        const prompt = promptTemplate
+            .replace(/\${morningStack}/g, morningStr)
+            .replace(/\${nightStack}/g, nightStr)
+            .replace(/\${relativeStack}/g, relativeStr)
+            .replace(/\${otherStack}/g, otherStr);
 
         const model = settings.aiModel;
 

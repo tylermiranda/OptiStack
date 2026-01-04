@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Link as LinkIcon, DollarSign, Activity, Sparkles, AlertTriangle, Download, X, Save, Sun, Moon, AlertCircle, Info } from 'lucide-react';
+import { Plus, Link as LinkIcon, DollarSign, Activity, Sparkles, AlertTriangle, Download, X, Save, Sun, Moon, AlertCircle, Info, Clock, Timer } from 'lucide-react';
 import { useSettings } from './SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
@@ -17,28 +17,51 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         schedule: { am: false, pm: false, amPills: 1, pmPills: 1 },
         reason: '',
         aiAnalysis: '',
+        aiTimingRecommendation: '',
         recommendedDosage: '',
         sideEffects: '',
         rating: '',
-        cycle: { onDays: '', offDays: '', startDate: '' }
+        cycle: { onDays: '', offDays: '', startDate: '' },
+        timing: { type: 'fixed', offsetMinutes: 0 }
     };
+
+
 
     const [formData, setFormData] = useState(defaultState);
     const [error, setError] = useState(null);
 
     React.useEffect(() => {
         if (initialData) {
-            setFormData(initialData);
+            setFormData({
+                ...defaultState,
+                ...initialData,
+                timing: initialData.timing || defaultState.timing
+            });
         } else {
             setFormData(defaultState);
         }
         setError(null);
     }, [initialData]);
-    const { settings } = useSettings();
+    const { settings, wakeTime } = useSettings();
     const { token } = useAuth();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
     const [aiCycleRecommendation, setAiCycleRecommendation] = useState('');
+
+    // Helper for offset to HH:MM display
+    const getOffsetDisplay = (minutes) => {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return `${h}h ${m}m`;
+    };
+
+    const handleOffsetChange = (h, m) => {
+        const totalMinutes = (parseInt(h) || 0) * 60 + (parseInt(m) || 0);
+        setFormData(prev => ({
+            ...prev,
+            timing: { ...prev.timing, offsetMinutes: totalMinutes }
+        }));
+    };
 
     const fetchProductDetails = async () => {
         if (!formData.link) return;
@@ -78,7 +101,32 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         if (!formData.name) return;
 
         const model = settings.aiModel;
-        const prompt = `Analyze the supplement "${formData.name}". Return a JSON object with these keys: "shortName" (clean ingredient name), "aiAnalysis" (short summary), "recommendedDosage", "sideEffects", "bestTime" ("AM", "PM", "Both", or "Any"), and "cycleRecommendation" (Object with "onDays": number, "offDays": number - ONLY if the supplement is commonly cycled like Creatine or Ashwagandha, otherwise null). Do not include markdown.`;
+
+        let promptTemplate = settings.prompts?.individual_analysis;
+        if (!promptTemplate) {
+            // Fallback if settings haven't loaded yet or key missing
+            promptTemplate = `Analyze the supplement "\${name}". 
+            My average wake time is \${wakeTime}.
+            
+            Return a JSON object with these keys:
+            - "shortName": Clean ingredient name.
+            - "aiAnalysis": Short summary of benefits.
+            - "aiTimingRecommendation": A short, human-readable sentence on when to take this (e.g. "Take 30 minutes after waking for cortisol management" or "Take with dinner").
+            - "recommendedDosage": Standard dosage.
+            - "sideEffects": Potential side effects.
+            - "cycleRecommendation": Object with "onDays" (number) and "offDays" (number) if cycling is common, else null.
+            - "timing": Object with:
+                - "type": "fixed" (for standard AM/PM) or "relative_wake" (if best taken relative to waking, e.g. cortisol support, morning energy).
+                - "offsetMinutes": Number (minutes after wake time, use 0 for immediately upon waking).
+                - "fixedSchedule": Object with "am" (boolean) and "pm" (boolean) - ONLY used if type is "fixed".
+
+            If the supplement is best taken in the morning to align with circadian rhythm (e.g. Vitamin D, B-Vitamins, Cortisol managers), prefer "relative_wake" with appropriate offset.
+            Do not include markdown.`;
+        }
+
+        const prompt = promptTemplate
+            .replace(/\${name}/g, formData.name)
+            .replace(/\${wakeTime}/g, wakeTime);
 
         setIsAnalyzing(true);
         setError(null);
@@ -92,7 +140,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 body: JSON.stringify({
                     model,
                     prompt,
-                    format: 'json' // Force JSON mode for Ollama
+                    format: 'json'
                 })
             });
 
@@ -112,7 +160,6 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
             // Parse JSON from content - Robust parsing logic
             let cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
 
-            // Find first { and last } to handle potential preamble/postamble
             const firstBrace = cleanContent.indexOf('{');
             const lastBrace = cleanContent.lastIndexOf('}');
 
@@ -128,15 +175,46 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 amPills: formData.schedule?.amPills || 1,
                 pmPills: formData.schedule?.pmPills || 1
             };
-            if (result.bestTime === 'AM' || result.bestTime === 'Both') newSchedule.am = true;
-            if (result.bestTime === 'PM' || result.bestTime === 'Both') newSchedule.pm = true;
+
+            let newTiming = { type: 'fixed', offsetMinutes: 0 };
+
+            // Handle new timing format
+            if (result.timing) {
+                if (result.timing.type === 'relative_wake') {
+                    newTiming = {
+                        type: 'relative_wake',
+                        offsetMinutes: result.timing.offsetMinutes || 0
+                    };
+                    // Clear fixed schedule
+                    newSchedule.am = false;
+                    newSchedule.pm = false;
+                } else {
+                    // Fixed timing
+                    newTiming = { type: 'fixed', offsetMinutes: 0 };
+                    if (result.timing.fixedSchedule) {
+                        newSchedule.am = result.timing.fixedSchedule.am || false;
+                        newSchedule.pm = result.timing.fixedSchedule.pm || false;
+                    }
+                    // Fallback to "bestTime" if new format fails or valid old format exists (though model should follow prompt)
+                    else if (result.bestTime) {
+                        if (result.bestTime === 'AM' || result.bestTime === 'Both') newSchedule.am = true;
+                        if (result.bestTime === 'PM' || result.bestTime === 'Both') newSchedule.pm = true;
+                    }
+                }
+            } else if (result.bestTime) {
+                // Legacy fallback
+                if (result.bestTime === 'Wake') {
+                    newTiming = { type: 'relative_wake', offsetMinutes: 30 };
+                } else {
+                    if (result.bestTime === 'AM' || result.bestTime === 'Both') newSchedule.am = true;
+                    if (result.bestTime === 'PM' || result.bestTime === 'Both') newSchedule.pm = true;
+                }
+            }
 
             let finalDosage = result.recommendedDosage || '';
-            if (result.bestTime === 'Any') {
-                finalDosage += " (Can be taken at any time)";
-            } else if (result.bestTime) {
-                // Optional: Add specific time text if needed, but badges cover AM/PM/Both
-                // finalDosage += ` (Best taken in ${result.bestTime})`;
+            // Add timing context to dosage if useful
+            if (newTiming.type === 'relative_wake') {
+                finalDosage += ` (Best taken ${newTiming.offsetMinutes === 0 ? 'upon waking' : `${newTiming.offsetMinutes} mins after waking`})`;
             }
 
             // Handle cycle info separately
@@ -155,19 +233,20 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 shortName: result.shortName || prev.name,
                 name: result.shortName || prev.name,
                 aiAnalysis: analysisSummary,
+                aiTimingRecommendation: result.aiTimingRecommendation || '',
                 recommendedDosage: finalDosage,
                 sideEffects: result.sideEffects || '',
                 schedule: newSchedule,
+                timing: newTiming,
                 cycle: result.cycleRecommendation ? {
                     onDays: result.cycleRecommendation.onDays,
                     offDays: result.cycleRecommendation.offDays,
-                    startDate: new Date().toISOString().split('T')[0] // Default to today if cycled
+                    startDate: new Date().toISOString().split('T')[0]
                 } : prev.cycle
             }));
         } catch (error) {
             console.error("AI Analysis failed:", error);
             let message = error.message;
-            // Try to parse clean message from JSON error if possible
             try {
                 if (message.includes('{')) {
                     const jsonPart = message.substring(message.indexOf('{'));
@@ -176,9 +255,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                         message = parsed.error.message;
                     }
                 }
-            } catch (e) {
-                // Keep original message
-            }
+            } catch (e) { }
             setError(`Analysis failed: ${message}`);
         } finally {
             setIsAnalyzing(false);
@@ -198,6 +275,10 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                 onDays: formData.cycle.onDays ? parseInt(formData.cycle.onDays) : null,
                 offDays: formData.cycle.offDays ? parseInt(formData.cycle.offDays) : null,
                 startDate: formData.cycle.startDate || null
+            },
+            timing: {
+                type: formData.timing.type,
+                offsetMinutes: parseInt(formData.timing.offsetMinutes) || 0
             }
         };
 
@@ -366,79 +447,145 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                     </div>
                 </div>
 
-                <div>
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">Schedule</label>
-                    <div className="flex gap-4 mt-2">
+                {/* Timing Strategy Selection */}
+                <div className="space-y-3 p-4 bg-muted/20 rounded-lg border">
+                    <label className="text-sm font-medium leading-none mb-2 block flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <label className={`
+                            <Timer size={16} /> Timing Strategy
+                        </div>
+                        {/* Toggle Style Switch */}
+                        <div className="flex bg-muted rounded-lg p-1">
+                            <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, timing: { ...prev.timing, type: 'fixed' } }))}
+                                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${formData.timing?.type !== 'relative_wake' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                Standard (AM/PM)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, timing: { ...prev.timing, type: 'relative_wake' } }))}
+                                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${formData.timing?.type === 'relative_wake' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                Bio-Rhythm
+                            </button>
+                        </div>
+                    </label>
+
+                    {formData.timing?.type === 'relative_wake' ? (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="mb-3 text-xs text-muted-foreground bg-blue-50/50 p-2 rounded border border-blue-100 flex gap-2 items-center">
+                                <Activity size={12} className="text-blue-600" />
+                                <span>Based on your Wake Time (<strong>{wakeTime}</strong>)</span>
+                            </div>
+
+                            <div className="flex items-end gap-3">
+                                <div>
+                                    <label className="text-xs font-medium mb-1.5 block">Time after waking</label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="23"
+                                                className={`${inputClassName} w-16 text-center`}
+                                                value={Math.floor((formData.timing?.offsetMinutes || 0) / 60)}
+                                                onChange={e => handleOffsetChange(e.target.value, (formData.timing?.offsetMinutes || 0) % 60)}
+                                            />
+                                            <span className="text-[10px] text-muted-foreground absolute -bottom-4 left-1/2 -translate-x-1/2">Hours</span>
+                                        </div>
+                                        <span className="text-muted-foreground font-bold pb-4">:</span>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="59"
+                                                className={`${inputClassName} w-16 text-center`}
+                                                value={(formData.timing?.offsetMinutes || 0) % 60}
+                                                onChange={e => handleOffsetChange(Math.floor((formData.timing?.offsetMinutes || 0) / 60), e.target.value)}
+                                            />
+                                            <span className="text-[10px] text-muted-foreground absolute -bottom-4 left-1/2 -translate-x-1/2">Mins</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="pb-1 text-sm text-foreground/70 font-medium">
+                                    {(formData.timing?.offsetMinutes || 0) > 0 ? (
+                                        <>≈ {(() => {
+                                            const [wh, wm] = wakeTime.split(':').map(Number);
+                                            const totalOffset = (wh * 60) + wm + (formData.timing?.offsetMinutes || 0);
+                                            const h = Math.floor(totalOffset / 60) % 24;
+                                            const m = totalOffset % 60;
+                                            const ampm = h >= 12 ? 'PM' : 'AM';
+                                            const dh = h % 12 || 12;
+                                            // Format 2 digits
+                                            const dm = m < 10 ? `0${m}` : m;
+                                            return `${dh}:${dm} ${ampm}`;
+                                        })()}</>
+                                    ) : (
+                                        "Upon Waking"
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex gap-4 mt-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="flex items-center gap-2">
+                                <label className={`
                                 flex items-center gap-2 px-4 py-2 rounded-md border cursor-pointer transition-all
                                 ${formData.schedule?.am ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-background border-input text-muted-foreground hover:bg-accent'}
                             `}>
-                                <input
-                                    type="checkbox"
-                                    checked={formData.schedule?.am || false}
-                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, am: e.target.checked } })}
-                                    className="hidden"
-                                />
-                                <Sun size={16} /> AM
-                            </label>
-                            {formData.schedule?.am && (
-                                <div className="flex items-center gap-1">
                                     <input
-                                        type="number"
-                                        min="0.1"
-                                        step="any"
-                                        className={`${inputClassName} w-[70px] text-center px-1`}
-                                        value={formData.schedule?.amPills || 1}
-                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, amPills: parseFloat(e.target.value) || 1 } })}
+                                        type="checkbox"
+                                        checked={formData.schedule?.am || false}
+                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, am: e.target.checked } })}
+                                        className="hidden"
                                     />
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formData.unitType === 'pills' ? 'pills' : formData.unitType}</span>
-                                </div>
-                            )}
-                        </div>
+                                    <Sun size={16} /> AM
+                                </label>
+                                {formData.schedule?.am && (
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="number"
+                                            min="0.1"
+                                            step="any"
+                                            className={`${inputClassName} w-[70px] text-center px-1`}
+                                            value={formData.schedule?.amPills || 1}
+                                            onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, amPills: parseFloat(e.target.value) || 1 } })}
+                                        />
+                                        <span className="text-xs text-muted-foreground whitespace-nowrap">{formData.unitType === 'pills' ? 'pills' : formData.unitType}</span>
+                                    </div>
+                                )}
+                            </div>
 
-                        <div className="flex items-center gap-2">
-                            <label className={`
+                            <div className="flex items-center gap-2">
+                                <label className={`
                                 flex items-center gap-2 px-4 py-2 rounded-md border cursor-pointer transition-all
                                 ${formData.schedule?.pm ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-background border-input text-muted-foreground hover:bg-accent'}
                             `}>
-                                <input
-                                    type="checkbox"
-                                    checked={formData.schedule?.pm || false}
-                                    onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, pm: e.target.checked } })}
-                                    className="hidden"
-                                />
-                                <Moon size={16} /> PM
-                            </label>
-                            {formData.schedule?.pm && (
-                                <div className="flex items-center gap-1">
                                     <input
-                                        type="number"
-                                        min="0.1"
-                                        step="any"
-                                        className={`${inputClassName} w-[70px] text-center px-1`}
-                                        value={formData.schedule?.pmPills || 1}
-                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, pmPills: parseFloat(e.target.value) || 1 } })}
+                                        type="checkbox"
+                                        checked={formData.schedule?.pm || false}
+                                        onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, pm: e.target.checked } })}
+                                        className="hidden"
                                     />
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formData.unitType === 'pills' ? 'pills' : formData.unitType}</span>
-                                </div>
-                            )}
+                                    <Moon size={16} /> PM
+                                </label>
+                                {formData.schedule?.pm && (
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="number"
+                                            min="0.1"
+                                            step="any"
+                                            className={`${inputClassName} w-[70px] text-center px-1`}
+                                            value={formData.schedule?.pmPills || 1}
+                                            onChange={e => setFormData({ ...formData, schedule: { ...formData.schedule, pmPills: parseFloat(e.target.value) || 1 } })}
+                                        />
+                                        <span className="text-xs text-muted-foreground whitespace-nowrap">{formData.unitType === 'pills' ? 'pills' : formData.unitType}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block">
-                        Dosage <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        className={inputClassName}
-                        placeholder="e.g. 500mg"
-                        value={formData.dosage}
-                        onChange={e => setFormData({ ...formData, dosage: e.target.value })}
-                        required
-                    />
+                    )}
                 </div>
 
                 {/* Cycle Manager Config */}
@@ -527,8 +674,20 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                             readOnly
                         />
 
+                        {formData.aiTimingRecommendation && (
+                            <div className="mt-3">
+                                <label className="text-xs font-medium text-blue-500 block mb-1">Timing Recommendation</label>
+                                <textarea
+                                    className={`${inputClassName} min-h-[40px] bg-background text-foreground border-blue-200 focus-visible:ring-blue-500/20`}
+                                    placeholder="When to take this..."
+                                    value={formData.aiTimingRecommendation}
+                                    readOnly
+                                />
+                            </div>
+                        )}
+
                         <div className="mt-3">
-                            <label className="text-xs font-medium text-muted-foreground block mb-1">Recommended Dosage</label>
+                            <label className="text-xs font-medium text-purple-500 block mb-1">Recommended Dosage</label>
                             <textarea
                                 className={`${inputClassName} min-h-[40px] bg-background text-foreground border-purple-200 focus-visible:ring-purple-500/20`}
                                 placeholder="Standard dosage range..."
@@ -549,8 +708,8 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
 
                         {aiCycleRecommendation && (
                             <div className="mt-3">
-                                <label className="text-xs font-medium text-blue-600 block mb-1">Cycle Recommendation</label>
-                                <div className={`${inputClassName} min-h-[40px] flex items-center bg-blue-50/50 text-blue-800 border-blue-200 text-sm`}>
+                                <label className="text-xs font-medium text-teal-600 block mb-1">Cycle Recommendation</label>
+                                <div className={`${inputClassName} min-h-[40px] flex items-center bg-background text-foreground border-teal-200 text-sm`}>
                                     {aiCycleRecommendation}
                                 </div>
                             </div>
