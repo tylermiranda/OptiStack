@@ -1,6 +1,36 @@
 # Changelog
 
 
+## [2.1.0] - 2026-01-03
+### Changed
+- **Unified Settings & Admin**: Merged the Admin Dashboard into the Settings menu. Admin features are now accessible via a dedicated "Admin" tab within Settings, visible only to users with admin privileges. This simplifies the interface by removing the separate admin button.
+
+## [2.0.0] - 2026-01-03
+### Added
+- **Local AI Support (Ollama)**: Run AI features entirely locally for complete privacy. Your supplement data never leaves your machine when using Ollama. Supports any Ollama-compatible model including Llama 3.1, Mistral, and Gemma 2.
+- **In-App AI Configuration**: Configure AI provider, Ollama URL, and OpenRouter API key directly from the Settings dialog—no environment variables required.
+- **Ollama Connection Testing**: Test your Ollama connection directly from settings and see available models before saving.
+
+### Changed
+- **AI Provider Abstraction**: Backend now supports multiple AI providers (OpenRouter cloud or Ollama local) through a unified interface.
+- **Dynamic Model Discovery**: Settings now automatically fetches available models from your configured AI provider.
+- **Enhanced Settings UI**: Redesigned settings dialog with provider selection cards, connection status, and privacy indicators.
+
+## [1.9.0] - 2026-01-03
+### Added
+- **Bioavailability Tips**: Each supplement card now displays absorption tips including what to take with (synergies), what to avoid (conflicts), timing recommendations, and food guidance. Data covers 20+ common supplements with links to Examine.com research.
+- **Stack Templates**: Browse curated supplement stacks for common goals: Athletic Performance, Sleep & Recovery, Focus & Cognition, and Longevity. Import an entire stack with one click.
+- **Influencer Stacks**: Pre-built templates based on publicly shared protocols from Andrew Huberman, Peter Attia, David Sinclair, and more—all with source attribution.
+- **Public Stack Sharing**: Generate shareable links to your supplement stack. Others can view your stack and import it to their own account.
+
+## [1.8.0] - 2026-01-03
+### Added
+- **AI Chat Assistant**: New conversational AI feature for discussing your supplements. Ask about interactions, get recommendations for specific health goals (e.g., "what supplements help with athletic performance?"), and evaluate potential new additions to your stack. The AI has full context of your current supplements and maintains conversation history.
+
+## [1.7.0] - 2026-01-03
+### Added
+- **AI Analysis History**: Stack analyses are now automatically saved and can be viewed later. Access your analysis history via the new "History" button in the AI Stack Analysis section. Each saved analysis includes the summary, benefits, synergies, risks, and a snapshot of which supplements were analyzed.
+
 ## [1.6.0] - 2026-01-02
 ### Added
 - **Stack Optimizer**: New AI-powered feature that analyzes your current stack and suggests missing cofactors and complementary supplements. Recommendations can be added directly to your stack with one click.

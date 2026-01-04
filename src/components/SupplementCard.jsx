@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
-import { ExternalLink, Star, Tag, AlertTriangle, Sparkles, User, Beaker, Pencil, Sun, Moon, ChevronDown, ChevronUp, Trash2, Archive, ArchiveRestore } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ExternalLink, Star, Tag, AlertTriangle, Sparkles, User, Beaker, Pencil, Sun, Moon, ChevronDown, ChevronUp, Trash2, Archive, ArchiveRestore, FlaskConical, CheckCircle2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
+import { findSupplementResearch } from '../data/supplementResearch';
 
 const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    // Lookup research data for this supplement
+    const research = useMemo(() => {
+        return findSupplementResearch(supplement.name);
+    }, [supplement.name]);
 
     return (
         <div className="rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md">
@@ -206,6 +212,50 @@ const SupplementCard = ({ supplement, onDelete, onEdit, onArchive }) => {
                                 <span>Side Effects</span>
                             </div>
                             <p className="text-sm text-destructive/90">{supplement.sideEffects}</p>
+                        </div>
+                    )}
+
+                    {/* Bioavailability Tips - from research data */}
+                    {research?.bioavailability && (
+                        <div className="mt-4 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300 mb-3">
+                                <FlaskConical size={14} />
+                                <span>Absorption Tips</span>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                {research.bioavailability.takeWith?.length > 0 && (
+                                    <div className="flex items-start gap-2">
+                                        <CheckCircle2 size={14} className="text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+                                        <p className="text-green-700 dark:text-green-300">
+                                            <span className="font-medium">Take with:</span> {research.bioavailability.takeWith.join(", ")}
+                                        </p>
+                                    </div>
+                                )}
+                                {research.bioavailability.avoidWith?.length > 0 && (
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                                        <p className="text-amber-700 dark:text-amber-300">
+                                            <span className="font-medium">Avoid with:</span> {research.bioavailability.avoidWith.join(", ")}
+                                        </p>
+                                    </div>
+                                )}
+                                {research.bioavailability.withFood && (
+                                    <p className="text-blue-600 dark:text-blue-400 text-xs mt-2">
+                                        💡 {research.bioavailability.withFood}
+                                    </p>
+                                )}
+                            </div>
+                            {research.researchLinks?.[0] && (
+                                <a
+                                    href={research.researchLinks[0].url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline mt-3"
+                                >
+                                    View Research on {research.researchLinks[0].title} <ExternalLink size={10} />
+                                </a>
+                            )}
                         </div>
                     )}
                 </div>

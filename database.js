@@ -108,6 +108,47 @@ function initDb() {
                 createDefaultAdmin();
             }
         });
+
+        // Analysis History Table (for saving AI stack analyses)
+        db.run(`CREATE TABLE IF NOT EXISTS analysis_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            summary TEXT,
+            benefits TEXT,
+            synergies TEXT,
+            potential_risks TEXT,
+            supplements_snapshot TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_analysis_history_user_id ON analysis_history(user_id)');
+
+        // Chat History Table (for AI chat conversations)
+        db.run(`CREATE TABLE IF NOT EXISTS chat_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_chat_history_user_id ON chat_history(user_id)');
+
+        // Shared Stacks Table (for public stack sharing)
+        db.run(`CREATE TABLE IF NOT EXISTS shared_stacks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            share_code TEXT UNIQUE NOT NULL,
+            title TEXT,
+            description TEXT,
+            supplements_snapshot TEXT NOT NULL,
+            is_public INTEGER DEFAULT 1,
+            view_count INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_shared_stacks_code ON shared_stacks(share_code)');
     });
 }
 

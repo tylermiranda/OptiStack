@@ -397,44 +397,678 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 
-// AI Status Endpoint - tells frontend if AI is available
-app.get('/api/ai/status', (req, res) => {
-    const isAvailable = !!process.env.OPENROUTER_API_KEY;
-    res.json({ available: isAvailable });
+// ===========================================
+// AI Provider Abstraction (OpenRouter + Ollama)
+// ===========================================
+
+// Helper to get AI settings from database (async)
+const getAISettings = () => {
+    return new Promise((resolve) => {
+        db.all("SELECT key, value FROM system_settings WHERE key LIKE 'AI_%' OR key LIKE 'OLLAMA_%' OR key = 'OPENROUTER_API_KEY'",
+            (err, rows) => {
+                if (err) {
+                    resolve({});
+                    return;
+                }
+                const settings = {};
+                (rows || []).forEach(r => settings[r.key] = r.value);
+                resolve(settings);
+            });
+    });
+};
+
+// Create AI provider based on config (database settings override env vars)
+const createAIProvider = (config = {}) => {
+    // Database settings take priority over environment variables
+    const provider = (config.AI_PROVIDER || process.env.AI_PROVIDER || 'openrouter').toLowerCase();
+
+    if (provider === 'ollama') {
+        const ollamaUrl = config.OLLAMA_URL || process.env.OLLAMA_URL || 'http://localhost:11434';
+        const defaultModel = config.OLLAMA_MODEL || process.env.OLLAMA_MODEL || 'llama3.1:8b';
+
+        return {
+            type: 'ollama',
+            url: ollamaUrl,
+            defaultModel,
+            isAvailable: async () => {
+                try {
+                    const res = await fetch(`${ollamaUrl}/api/tags`, {
+                        signal: AbortSignal.timeout(3000)
+                    });
+                    return res.ok;
+                } catch {
+                    return false;
+                }
+            },
+            getModels: async () => {
+                try {
+                    console.log(`[Ollama] Fetching models from ${ollamaUrl}/api/tags`);
+                    const res = await fetch(`${ollamaUrl}/api/tags`);
+                    if (!res.ok) {
+                        console.error(`[Ollama] Failed to fetch tags: ${res.status}`);
+                        return [];
+                    }
+                    const data = await res.json();
+                    console.log(`[Ollama] Raw models:`, JSON.stringify(data.models?.map(m => m.name)));
+                    return (data.models || []).map(m => ({
+                        id: m.name,
+                        name: m.name,
+                        size: m.size
+                    }));
+                } catch (e) {
+                    console.error(`[Ollama] Error fetching models:`, e.message);
+                    return [];
+                }
+            },
+            chat: async (model, messages) => {
+                const targetModel = (model || defaultModel || '').trim();
+                console.log(`[Ollama] Sending chat request to ${ollamaUrl}/api/chat`);
+                console.log(`[Ollama] Model: ${targetModel}`);
+
+                try {
+                    console.log(`[Ollama] Waiting for response... (timeout 120s)`);
+                    const res = await fetch(`${ollamaUrl}/api/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: targetModel,
+                            messages,
+                            stream: false
+                        }),
+                        signal: AbortSignal.timeout(120000) // 2 minute timeout
+                    });
+
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        console.error(`[Ollama] Error Status: ${res.status}`);
+                        console.error(`[Ollama] Error Body: ${errorText}`);
+
+                        let errorData = {};
+                        try {
+                            errorData = JSON.parse(errorText);
+                        } catch (e) {
+                            errorData = { error: errorText };
+                        }
+
+                        throw new Error(errorData.error || `Ollama returned status ${res.status}`);
+                    }
+
+                    const data = await res.json();
+                    const preview = data.message?.content ? data.message.content.substring(0, 200) + '...' : 'Empty';
+                    console.log(`[Ollama] Response received. Model: ${data.model}, Content length: ${data.message?.content?.length}`);
+                    console.log(`[Ollama] Content preview: ${preview}`);
+
+                    if (!data.message?.content) {
+                        console.warn(`[Ollama] Warning: Empty content received! Full response:`, JSON.stringify(data));
+                    }
+
+                    return {
+                        content: data.message?.content || '',
+                        model: data.model
+                    };
+                } catch (error) {
+                    if (error.name === 'TimeoutError') {
+                        console.error(`[Ollama] Request timed out after 120s`);
+                    } else {
+                        console.error(`[Ollama] Connection Failed:`, error.message);
+                    }
+                    throw error;
+                }
+            }
+        };
+    }
+
+    // OpenRouter (default)
+    const apiKey = config.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
+    return {
+        type: 'openrouter',
+        defaultModel: 'google/gemini-2.0-flash-001',
+        isAvailable: async () => !!apiKey,
+        getModels: async () => [
+            // Free/Low Cost (recommended for most use cases)
+            { id: 'google/gemini-2.0-flash-001', name: '⭐ Gemini 2.0 Flash (Recommended)' },
+            { id: 'google/gemini-flash-1.5', name: 'Gemini 1.5 Flash' },
+            { id: 'google/gemini-2.0-flash-lite-preview-02-05:free', name: 'Gemini 2.0 Flash Lite (Free)' },
+            { id: 'meta-llama/llama-3.1-8b-instruct:free', name: 'Llama 3.1 8B (Free)' },
+            { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B (Free)' },
+            // Mid-tier
+            { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
+            { id: 'openai/gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+            { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
+            { id: 'google/gemini-pro-1.5', name: 'Gemini 1.5 Pro' },
+            // Premium
+            { id: 'openai/gpt-4o', name: 'GPT-4o' },
+            { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
+            { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus' },
+            { id: 'google/gemini-2.0-pro-exp-02-05:free', name: 'Gemini 2.0 Pro (Experimental)' },
+        ],
+        chat: async (model, messages) => {
+            if (!apiKey) {
+                throw new Error('OPENROUTER_API_KEY is not configured');
+            }
+
+            const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:5173',
+                    'X-Title': 'OptiStack'
+                },
+                body: JSON.stringify({
+                    model: model || 'google/gemini-2.0-flash-001',
+                    messages
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error?.message || `OpenRouter returned status ${res.status}`);
+            }
+
+            return {
+                content: data.choices[0]?.message?.content || '',
+                model: data.model
+            };
+        }
+    };
+};
+
+// Get AI provider with database settings
+const getAIProvider = async () => {
+    const settings = await getAISettings();
+    return createAIProvider(settings);
+};
+
+// AI Settings Endpoint - get current AI configuration
+app.get('/api/ai/settings', authenticateToken, async (req, res) => {
+    const settings = await getAISettings();
+
+    // Return current config (don't expose full API key)
+    res.json({
+        provider: settings.AI_PROVIDER || process.env.AI_PROVIDER || 'openrouter',
+        ollamaUrl: settings.OLLAMA_URL || process.env.OLLAMA_URL || 'http://localhost:11434',
+        ollamaModel: settings.OLLAMA_MODEL || process.env.OLLAMA_MODEL || 'llama3.1:8b',
+        hasOpenRouterKey: !!(settings.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY),
+        // Indicate if settings come from env or database
+        configSource: settings.AI_PROVIDER ? 'database' : 'environment'
+    });
+});
+
+// AI Settings Endpoint - update AI configuration
+app.post('/api/ai/settings', authenticateToken, async (req, res) => {
+    const { provider, ollamaUrl, ollamaModel, openRouterKey } = req.body;
+
+    const stmt = db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)');
+
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        if (provider) {
+            stmt.run('AI_PROVIDER', provider);
+        }
+        if (ollamaUrl) {
+            stmt.run('OLLAMA_URL', ollamaUrl);
+        }
+        if (ollamaModel) {
+            stmt.run('OLLAMA_MODEL', ollamaModel);
+        }
+        if (openRouterKey !== undefined) {
+            // Allow setting or clearing the key
+            if (openRouterKey) {
+                stmt.run('OPENROUTER_API_KEY', openRouterKey);
+            } else {
+                db.run("DELETE FROM system_settings WHERE key = 'OPENROUTER_API_KEY'");
+            }
+        }
+
+        db.run('COMMIT', (err) => {
+            stmt.finalize();
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json({ message: 'AI settings saved' });
+        });
+    });
+});
+
+// Test Ollama Connection
+app.post('/api/ai/test-ollama', authenticateToken, async (req, res) => {
+    const { url } = req.body;
+    const testUrl = url || 'http://localhost:11434';
+
+    try {
+        const response = await fetch(`${testUrl}/api/tags`, {
+            signal: AbortSignal.timeout(5000)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const models = (data.models || []).map(m => m.name);
+            res.json({
+                success: true,
+                message: `Connected to Ollama. ${models.length} models available.`,
+                models
+            });
+        } else {
+            res.json({ success: false, message: `Ollama returned status ${response.status}` });
+        }
+    } catch (error) {
+        res.json({
+            success: false,
+            message: `Could not connect to Ollama at ${testUrl}. Make sure Ollama is running.`
+        });
+    }
+});
+
+// AI Status Endpoint - tells frontend if AI is available and which provider
+app.get('/api/ai/status', async (req, res) => {
+    const provider = await getAIProvider();
+    const available = await provider.isAvailable();
+
+    res.json({
+        available,
+        provider: provider.type,
+        defaultModel: provider.defaultModel,
+        ollamaUrl: provider.type === 'ollama' ? provider.url : undefined
+    });
+});
+
+// AI Models Endpoint - returns available models for current provider
+app.get('/api/ai/models', async (req, res) => {
+    const provider = await getAIProvider();
+    const available = await provider.isAvailable();
+
+    if (!available) {
+        return res.status(503).json({
+            error: provider.type === 'ollama'
+                ? 'Ollama is not reachable. Make sure Ollama is running.'
+                : 'OpenRouter API key not configured.'
+        });
+    }
+
+    const models = await provider.getModels();
+    res.json({
+        provider: provider.type,
+        models
+    });
 });
 
 // AI Proxy Endpoint (keeps API keys server-side)
 app.post('/api/ai/analyze', authenticateToken, async (req, res) => {
     const { prompt, model } = req.body;
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-        console.warn('AI Analysis request failed: OPENROUTER_API_KEY is not set in environment.');
-        return res.status(500).json({ error: 'AI not configured. Please set OPENROUTER_API_KEY in .env.' });
-    }
+    const provider = await getAIProvider();
 
     try {
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:5173',
-                'X-Title': 'OptiStack'
-            },
-            body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }] })
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error('OpenRouter API Error:', data);
-            return res.status(response.status).json({ error: data.error?.message || 'AI provider returned an error' });
+        const available = await provider.isAvailable();
+        if (!available) {
+            const errorMsg = provider.type === 'ollama'
+                ? 'Ollama is not reachable. Make sure Ollama is running.'
+                : 'AI not configured. Please set OPENROUTER_API_KEY in .env.';
+            console.warn(`[AI Analyze] Provider unavailability: ${errorMsg}`);
+            return res.status(500).json({ error: errorMsg });
         }
 
-        res.json(data);
+        console.log(`[AI Analyze] Using provider: ${provider.type}`);
+        console.log(`[AI Analyze] Requested model: ${model}`);
+
+        const result = await provider.chat(model, [{ role: 'user', content: prompt }]);
+
+        // Return in the format expected by the frontend
+        res.json({
+            choices: [{
+                message: {
+                    content: result.content
+                }
+            }]
+        });
     } catch (error) {
         console.error('AI Proxy Error:', error.message);
         res.status(500).json({ error: 'AI request failed: ' + error.message });
     }
+});
+
+// Analysis History Endpoints
+
+// Save Analysis
+app.post('/api/ai/analysis-history', authenticateToken, (req, res) => {
+    const { summary, benefits, synergies, potential_risks, supplements } = req.body;
+
+    db.run(`INSERT INTO analysis_history (user_id, summary, benefits, synergies, potential_risks, supplements_snapshot) 
+            VALUES (?, ?, ?, ?, ?, ?)`, [
+        req.user.id,
+        summary,
+        JSON.stringify(benefits),
+        JSON.stringify(synergies),
+        JSON.stringify(potential_risks),
+        JSON.stringify(supplements)
+    ], function (err) {
+        if (err) return res.status(500).json({ error: 'Failed to save analysis' });
+        res.json({ id: this.lastID, created_at: new Date().toISOString() });
+    });
+});
+
+// Get Analysis History
+app.get('/api/ai/analysis-history', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM analysis_history WHERE user_id = ? ORDER BY created_at DESC', [req.user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Failed to fetch analysis history' });
+
+        const history = rows.map(row => ({
+            id: row.id,
+            summary: row.summary,
+            benefits: JSON.parse(row.benefits || '[]'),
+            synergies: JSON.parse(row.synergies || '[]'),
+            potential_risks: JSON.parse(row.potential_risks || '[]'),
+            supplements_snapshot: JSON.parse(row.supplements_snapshot || '[]'),
+            created_at: row.created_at
+        }));
+        res.json(history);
+    });
+});
+
+// Delete Analysis
+app.delete('/api/ai/analysis-history/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM analysis_history WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], function (err) {
+        if (err) return res.status(500).json({ error: 'Failed to delete analysis' });
+        if (this.changes === 0) return res.status(404).json({ error: 'Analysis not found or unauthorized' });
+        res.json({ message: 'Deleted' });
+    });
+});
+
+// AI Chat Endpoints
+
+// Chat with AI about supplements
+app.post('/api/ai/chat', authenticateToken, async (req, res) => {
+    const { message, model } = req.body;
+    const provider = await getAIProvider();
+
+    if (!message || !message.trim()) {
+        return res.status(400).json({ error: 'Message is required' });
+    }
+
+    try {
+        const available = await provider.isAvailable();
+        if (!available) {
+            const errorMsg = provider.type === 'ollama'
+                ? 'Ollama is not reachable. Make sure Ollama is running.'
+                : 'AI not configured. Please set OPENROUTER_API_KEY in .env.';
+            console.warn(`[AI Chat] Provider unavailability: ${errorMsg}`);
+            return res.status(500).json({ error: errorMsg });
+        }
+
+        console.log(`[AI Chat] Using provider: ${provider.type}`);
+        console.log(`[AI Chat] Requested model: ${model}`);
+
+        // Fetch user's current supplements for context
+        const supplements = await new Promise((resolve, reject) => {
+            db.all('SELECT name, dosage, schedule_am, schedule_pm, reason FROM supplements WHERE user_id = ? AND archived = 0',
+                [req.user.id], (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
+                });
+        });
+
+        // Fetch recent chat history for context
+        const chatHistory = await new Promise((resolve, reject) => {
+            db.all('SELECT role, content FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 10',
+                [req.user.id], (err, rows) => {
+                    if (err) reject(err);
+                    else resolve((rows || []).reverse());
+                });
+        });
+
+        // Build supplement context
+        let supplementContext = '';
+        if (supplements.length > 0) {
+            supplementContext = `\n\nThe user's current supplement stack:\n${supplements.map(s => {
+                const schedule = [];
+                if (s.schedule_am) schedule.push('morning');
+                if (s.schedule_pm) schedule.push('evening');
+                return `- ${s.name}${s.dosage ? ` (${s.dosage})` : ''}${schedule.length ? ` - taken ${schedule.join(' and ')}` : ''}${s.reason ? ` - reason: ${s.reason}` : ''}`;
+            }).join('\n')}`;
+        } else {
+            supplementContext = '\n\nThe user currently has no supplements in their stack.';
+        }
+
+        const systemPrompt = `You are a knowledgeable supplement and health assistant for OptiStack, a supplement management application. 
+Your role is to help users:
+1. Understand their current supplement stack and potential interactions
+2. Evaluate whether adding new supplements would be beneficial or pose risks
+3. Provide recommendations for supplements based on health goals or ailments
+4. Explain optimal timing, dosages, and synergies between supplements
+
+Important guidelines:
+- Always consider the user's current stack when making recommendations
+- Highlight potential interactions (both positive synergies and negative interactions)
+- Be clear when something requires medical consultation
+- Provide evidence-based information when possible
+- Be concise but thorough in your responses
+${supplementContext}`;
+
+        // Build messages array with history
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            ...chatHistory.map(h => ({ role: h.role, content: h.content })),
+            { role: 'user', content: message }
+        ];
+
+        const result = await provider.chat(model, messages);
+        const assistantMessage = result.content;
+
+        console.log(`[AI Chat] Successful response from ${provider.type}`);
+
+        // Save both messages to chat history
+        db.run('INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)',
+            [req.user.id, 'user', message]);
+        db.run('INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)',
+            [req.user.id, 'assistant', assistantMessage]);
+
+        res.json({ message: assistantMessage });
+
+    } catch (error) {
+        console.error('AI Chat Error:', error);
+        console.error('Stack:', error.stack);
+        res.status(500).json({ error: 'Chat request failed: ' + error.message });
+    }
+});
+
+// Get Chat History
+app.get('/api/ai/chat-history', authenticateToken, (req, res) => {
+    db.all('SELECT id, role, content, created_at FROM chat_history WHERE user_id = ? ORDER BY created_at ASC',
+        [req.user.id], (err, rows) => {
+            if (err) return res.status(500).json({ error: 'Failed to fetch chat history' });
+            res.json(rows || []);
+        });
+});
+
+// Clear Chat History
+app.delete('/api/ai/chat-history', authenticateToken, (req, res) => {
+    db.run('DELETE FROM chat_history WHERE user_id = ?', [req.user.id], function (err) {
+        if (err) return res.status(500).json({ error: 'Failed to clear chat history' });
+        res.json({ message: 'Chat history cleared' });
+    });
+});
+
+// Stack Sharing Endpoints
+
+// Generate unique share code
+const generateShareCode = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+    for (let i = 0; i < 10; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+};
+
+// Create shareable stack link
+app.post('/api/stacks/share', authenticateToken, async (req, res) => {
+    const { title, description } = req.body;
+
+    try {
+        // Get user's current supplements
+        const supplements = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM supplements WHERE user_id = ? AND archived = 0', [req.user.id], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+
+        if (supplements.length === 0) {
+            return res.status(400).json({ error: 'No active supplements to share' });
+        }
+
+        // Format supplements for snapshot
+        const snapshot = supplements.map(s => ({
+            name: s.name,
+            dosage: s.dosage,
+            unitType: s.unit_type || 'pills',
+            schedule: {
+                am: !!s.schedule_am,
+                pm: !!s.schedule_pm,
+                amPills: s.schedule_am_pills,
+                pmPills: s.schedule_pm_pills
+            },
+            reason: s.reason
+        }));
+
+        const shareCode = generateShareCode();
+
+        db.run(`INSERT INTO shared_stacks (user_id, share_code, title, description, supplements_snapshot) 
+                VALUES (?, ?, ?, ?, ?)`,
+            [req.user.id, shareCode, title || 'My Supplement Stack', description || '', JSON.stringify(snapshot)],
+            function (err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE constraint')) {
+                        // Retry with new code
+                        return res.status(500).json({ error: 'Please try again' });
+                    }
+                    return res.status(500).json({ error: 'Failed to create share link' });
+                }
+                res.json({
+                    shareCode,
+                    shareUrl: `/shared/${shareCode}`,
+                    supplementCount: snapshot.length
+                });
+            }
+        );
+    } catch (error) {
+        console.error('Share stack error:', error);
+        res.status(500).json({ error: 'Failed to share stack' });
+    }
+});
+
+// Get shared stack (PUBLIC - no auth required)
+app.get('/api/stacks/shared/:code', (req, res) => {
+    const { code } = req.params;
+
+    db.get(`SELECT ss.*, u.username 
+            FROM shared_stacks ss 
+            LEFT JOIN users u ON ss.user_id = u.id 
+            WHERE ss.share_code = ? AND ss.is_public = 1`,
+        [code],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            if (!row) return res.status(404).json({ error: 'Stack not found or expired' });
+
+            // Check expiration
+            if (row.expires_at && new Date(row.expires_at) < new Date()) {
+                return res.status(404).json({ error: 'This shared stack has expired' });
+            }
+
+            // Increment view count
+            db.run('UPDATE shared_stacks SET view_count = view_count + 1 WHERE id = ?', [row.id]);
+
+            res.json({
+                title: row.title,
+                description: row.description,
+                author: row.username || 'Anonymous',
+                supplements: JSON.parse(row.supplements_snapshot),
+                viewCount: row.view_count + 1,
+                createdAt: row.created_at
+            });
+        }
+    );
+});
+
+// Import shared stack to user's account
+app.post('/api/stacks/shared/:code/import', authenticateToken, async (req, res) => {
+    const { code } = req.params;
+
+    try {
+        // Get the shared stack
+        const sharedStack = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM shared_stacks WHERE share_code = ? AND is_public = 1', [code], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!sharedStack) {
+            return res.status(404).json({ error: 'Stack not found' });
+        }
+
+        const supplements = JSON.parse(sharedStack.supplements_snapshot);
+        let importedCount = 0;
+
+        // Import each supplement
+        for (const s of supplements) {
+            await new Promise((resolve, reject) => {
+                db.run(`INSERT INTO supplements (
+                    user_id, name, dosage, unit_type,
+                    schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
+                    reason, archived
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`, [
+                    req.user.id,
+                    s.name,
+                    s.dosage,
+                    s.unitType || 'pills',
+                    s.schedule?.am ? 1 : 0,
+                    s.schedule?.pm ? 1 : 0,
+                    s.schedule?.amPills || 1,
+                    s.schedule?.pmPills || 1,
+                    s.reason || `Imported from "${sharedStack.title}"`
+                ], function (err) {
+                    if (err) reject(err);
+                    else {
+                        importedCount++;
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        res.json({
+            message: `Successfully imported ${importedCount} supplements`,
+            importedCount
+        });
+
+    } catch (error) {
+        console.error('Import stack error:', error);
+        res.status(500).json({ error: 'Failed to import stack' });
+    }
+});
+
+// Get user's shared stacks
+app.get('/api/stacks/my-shares', authenticateToken, (req, res) => {
+    db.all('SELECT id, share_code, title, description, view_count, created_at FROM shared_stacks WHERE user_id = ? ORDER BY created_at DESC',
+        [req.user.id],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json(rows || []);
+        }
+    );
+});
+
+// Delete shared stack
+app.delete('/api/stacks/shared/:code', authenticateToken, (req, res) => {
+    db.run('DELETE FROM shared_stacks WHERE share_code = ? AND user_id = ?',
+        [req.params.code, req.user.id],
+        function (err) {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            if (this.changes === 0) return res.status(404).json({ error: 'Stack not found or unauthorized' });
+            res.json({ message: 'Share link deleted' });
+        }
+    );
 });
 
 // Scrape Endpoint

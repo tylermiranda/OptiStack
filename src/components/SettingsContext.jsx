@@ -1,26 +1,96 @@
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react"
 
 const SettingsContext = createContext()
 
 export function SettingsProvider({ children, storageKey = "optistack-settings" }) {
-    const [aiAvailable, setAiAvailable] = useState(false)
+    const [aiStatus, setAiStatus] = useState({
+        available: false,
+        provider: 'openrouter',
+        defaultModel: 'google/gemini-2.0-flash-001',
+        ollamaUrl: null
+    })
+    const [availableModels, setAvailableModels] = useState([])
 
     const [settings, setSettings] = useState(() => {
         const saved = localStorage.getItem(storageKey)
         return saved ? JSON.parse(saved) : {
             aiEnabled: true,
-            apiKey: "",
             aiModel: "google/gemini-2.0-flash-001"
         }
     })
 
-    // Check if AI is available on the server
-    useEffect(() => {
+    // Function to refresh AI status
+    const refreshAIStatus = useCallback(() => {
         fetch('/api/ai/status')
             .then(res => res.json())
-            .then(data => setAiAvailable(data.available))
-            .catch(() => setAiAvailable(false))
+            .then(data => {
+                setAiStatus({
+                    available: data.available,
+                    provider: data.provider || 'openrouter',
+                    defaultModel: data.defaultModel || 'google/gemini-2.0-flash-001',
+                    ollamaUrl: data.ollamaUrl || null
+                })
+
+                // If using default model and server reports a different default, update it
+                if (data.available && data.defaultModel) {
+                    setSettings(prev => ({ ...prev, aiModel: data.defaultModel }))
+                }
+
+                // Also refresh models
+                if (data.available) {
+                    fetch('/api/ai/models')
+                        .then(res => res.json())
+                        .then(modelsData => {
+                            if (modelsData.models && modelsData.models.length > 0) {
+                                setAvailableModels(modelsData.models);
+
+                                // Auto-correct selection if current model isn't in the list
+                                setSettings(prev => {
+                                    // Don't override if we haven't loaded settings yet or if it's valid
+                                    const currentModelExists = modelsData.models.some(m => m.id === prev.aiModel);
+                                    if (!currentModelExists) {
+                                        console.log(`[Auto-Correct] Model ${prev.aiModel} not found. Switching to ${modelsData.models[0].id}`);
+                                        return { ...prev, aiModel: modelsData.models[0].id };
+                                    }
+                                    return prev;
+                                });
+                            }
+                        })
+                        .catch(console.error)
+                }
+            })
+            .catch(() => setAiStatus(prev => ({ ...prev, available: false })))
     }, [])
+
+    // Check AI status on mount
+    useEffect(() => {
+        refreshAIStatus()
+    }, [refreshAIStatus])
+
+    // Fetch available models when AI is available
+    useEffect(() => {
+        if (aiStatus.available) {
+            fetch('/api/ai/models')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.models) {
+                        setAvailableModels(data.models)
+                    }
+                })
+                .catch(() => {
+                    // Fallback models if fetch fails
+                    if (aiStatus.provider === 'openrouter') {
+                        setAvailableModels([
+                            { id: "google/gemini-2.0-flash-001", name: "⭐ Gemini 2.0 Flash (Recommended)" },
+                            { id: "google/gemini-flash-1.5", name: "Gemini 1.5 Flash" },
+                            { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B (Free)" },
+                            { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
+                            { id: "openai/gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
+                        ])
+                    }
+                })
+        }
+    }, [aiStatus.available, aiStatus.provider])
 
     useEffect(() => {
         localStorage.setItem(storageKey, JSON.stringify(settings))
@@ -30,23 +100,16 @@ export function SettingsProvider({ children, storageKey = "optistack-settings" }
         setSettings(prev => ({ ...prev, ...newSettings }))
     }
 
-    const availableModels = [
-        { id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash" },
-        { id: "google/gemini-2.0-pro-exp-02-05:free", name: "Gemini Pro Experimental" },
-        { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
-        { id: "openai/gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
-        { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B (Free)" },
-    ]
-
     const value = {
         settings: {
             ...settings,
-            // AI is only truly enabled if server has the key AND user wants it
-            aiEnabled: settings.aiEnabled && aiAvailable
+            // AI is only truly enabled if server has the provider configured AND user wants it
+            aiEnabled: settings.aiEnabled && aiStatus.available
         },
-        aiAvailable,
+        aiStatus,
         updateSettings,
-        availableModels
+        availableModels,
+        refreshAIStatus
     }
 
     return (

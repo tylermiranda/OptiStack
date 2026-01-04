@@ -59,14 +59,13 @@ export function InteractionChecker({ open, onOpenChange, supplements }) {
             STACK: 
             ${fullStack.join(', ')}
 
-            Provide the response in JSON format with the following keys:
-            - "interactions": Array of objects, each with:
-                - "severity": "HIGH", "MODERATE", or "LOW"
-                - "substances": Array of strings (the distinct supplements involved)
-                - "description": Short description of the interaction risk.
-            - "summary": A brief safety summary.
+            Provide the response in STRICT JSON format. Do not include any markdown formatting, code blocks, or explanations outside the JSON.
             
-            If there are no known interactions, return an empty array for interactions.
+            Key requirements:
+            - Return ONLY a valid JSON object.
+            - Keys: "interactions" (array) and "summary" (string).
+            - "interactions" items: { "severity": "HIGH"/"MODERATE"/"LOW", "substances": ["name1", "name2"], "description": "text" }
+            - If no interactions, return empty array for "interactions".
         `;
 
         try {
@@ -83,13 +82,39 @@ export function InteractionChecker({ open, onOpenChange, supplements }) {
 
             const data = await response.json();
             const content = data.choices[0].message.content;
-            const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            const parsed = JSON.parse(cleanContent);
-            setResult(parsed);
+            console.log("Raw AI Response:", content);
+
+            // Robust JSON extraction
+            let cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+
+            // If the content is not just JSON, try to extract the JSON object
+            const firstBrace = cleanContent.indexOf('{');
+            const lastBrace = cleanContent.lastIndexOf('}');
+
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
+            }
+
+            try {
+                const parsed = JSON.parse(cleanContent);
+                setResult(parsed);
+            } catch (jsonErr) {
+                console.error("JSON Parse Error:", jsonErr);
+                console.warn("Falling back to raw text display");
+
+                // Fallback: Display raw text as summary
+                setResult({
+                    summary: content, // Use full original content
+                    interactions: []
+                });
+
+                // Optional: set a non-blocking error/warning to let them know formatting failed
+                setError(null);
+            }
 
         } catch (err) {
-            console.error(err);
-            setError("Failed to check interactions. Please try again.");
+            console.error("Analysis Error:", err);
+            setError(err.message || "Failed to check interactions. Please try again.");
         } finally {
             setIsAnalyzing(false);
         }
