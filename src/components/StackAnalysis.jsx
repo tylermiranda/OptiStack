@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Brain, Sparkles, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
+import { Brain, Sparkles, AlertTriangle, CheckCircle, ArrowRight, History } from 'lucide-react';
 import { useSettings } from './SettingsContext';
 import { useAuth } from '../context/AuthContext';
+import AnalysisHistoryDialog from './AnalysisHistoryDialog';
 
 const StackAnalysis = ({ supplements }) => {
     const { settings } = useSettings();
@@ -9,6 +10,29 @@ const StackAnalysis = ({ supplements }) => {
     const [analysis, setAnalysis] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState(null);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+    const saveAnalysis = async (analysisResult) => {
+        try {
+            const supplementNames = supplements.map(s => s.name);
+            await fetch('/api/ai/analysis-history', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    summary: analysisResult.summary,
+                    benefits: analysisResult.benefits,
+                    synergies: analysisResult.synergies,
+                    potential_risks: analysisResult.potential_risks,
+                    supplements: supplementNames
+                })
+            });
+        } catch (err) {
+            console.error('Failed to save analysis to history:', err);
+        }
+    };
 
     const handleAnalyze = async () => {
         setIsAnalyzing(true);
@@ -60,6 +84,9 @@ const StackAnalysis = ({ supplements }) => {
             const result = JSON.parse(cleanContent);
             setAnalysis(result);
 
+            // Auto-save the analysis
+            await saveAnalysis(result);
+
         } catch (err) {
             console.error(err);
             setError("Failed to generate analysis. Please try again.");
@@ -77,16 +104,25 @@ const StackAnalysis = ({ supplements }) => {
                     <Brain size={24} className="text-primary" />
                     <h2 className="text-2xl font-bold tracking-tight">AI Stack Analysis</h2>
                 </div>
-                {!analysis && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                        onClick={() => setIsHistoryOpen(true)}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                     >
-                        <Sparkles size={16} className="mr-2" />
-                        {isAnalyzing ? 'Analyzing Protocol...' : 'Analyze Full Stack'}
+                        <History size={16} className="mr-2" />
+                        History
                     </button>
-                )}
+                    {!analysis && (
+                        <button
+                            onClick={handleAnalyze}
+                            disabled={isAnalyzing}
+                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                        >
+                            <Sparkles size={16} className="mr-2" />
+                            {isAnalyzing ? 'Analyzing Protocol...' : 'Analyze Full Stack'}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {error && (
@@ -155,6 +191,8 @@ const StackAnalysis = ({ supplements }) => {
                     </button>
                 </div>
             )}
+
+            <AnalysisHistoryDialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen} />
         </section>
     );
 };

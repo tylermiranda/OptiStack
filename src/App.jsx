@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { Sparkles, LayoutGrid, Plus, LogOut, Shield, Share2 } from 'lucide-react';
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+import { Sparkles, LayoutGrid, Plus, LogOut, Shield, Share2, MessageCircle, LayoutTemplate, Link2 } from 'lucide-react';
 import SupplementCard from './components/SupplementCard';
 import AddSupplementForm from './components/AddSupplementForm';
 import DailyVisualization from './components/DailyVisualization';
@@ -12,7 +11,7 @@ import { ModeToggle } from "./components/mode-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs"
-import { SettingsProvider } from "./components/SettingsContext"
+import { SettingsProvider, useSettings } from "./components/SettingsContext"
 import { SettingsDialog } from "./components/SettingsDialog"
 import ReleaseNotesDialog from "./components/ReleaseNotesDialog"
 import { RefillModal } from "./components/RefillModal"
@@ -20,14 +19,18 @@ import ShareStackDialog from "./components/ShareStackDialog"
 import { Settings, Pill, FileText, Stethoscope } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip"
 import { InteractionChecker } from "./components/InteractionChecker"
+import { AIChatDialog } from "./components/AIChatDialog"
+import { StackTemplatesDialog } from "./components/StackTemplatesDialog"
+import { PublicShareDialog } from "./components/PublicShareDialog"
+import { SharedStackPage } from "./components/SharedStackPage"
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/AuthPage';
 
 function Dashboard() {
     const { user, token, logout, isAuthDisabled } = useAuth();
+    const { settings } = useSettings();
     const [supplements, setSupplements] = useState([]);
-    const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'admin'
 
     const [editingId, setEditingId] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -36,6 +39,26 @@ function Dashboard() {
     const [isRefillOpen, setIsRefillOpen] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [isInteractionOpen, setIsInteractionOpen] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+    const [isPublicShareOpen, setIsPublicShareOpen] = useState(false);
+
+    const fetchSupplements = async () => {
+        if (!token) return;
+        try {
+            const res = await fetch('/api/supplements', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.status === 401 || res.status === 403) {
+                logout();
+                return;
+            }
+            const data = await res.json();
+            if (Array.isArray(data)) setSupplements(data);
+        } catch (err) {
+            console.error("Failed to fetch supplements", err);
+        }
+    };
 
     useEffect(() => {
         if (token) {
@@ -48,17 +71,7 @@ function Dashboard() {
                 localStorage.setItem('lastSeenVersion', currentVersion);
             }
 
-            fetch('/api/supplements', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-                .then(res => {
-                    if (res.status === 401 || res.status === 403) logout();
-                    return res.json();
-                })
-                .then(data => {
-                    if (Array.isArray(data)) setSupplements(data);
-                })
-                .catch(err => console.error("Failed to fetch supplements", err));
+            fetchSupplements();
         }
     }, [token, logout]);
 
@@ -153,22 +166,6 @@ function Dashboard() {
         return <AuthPage />;
     }
 
-    if (currentView === 'admin') {
-        return (
-            <div className="container mx-auto px-4 py-8 max-w-4xl text-foreground bg-background min-h-screen transition-colors duration-300">
-                <button
-                    onClick={() => setCurrentView('dashboard')}
-                    className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-primary"
-                >
-                    &larr; Back to Dashboard
-                </button>
-                <Suspense fallback={<div className="text-center py-8 text-muted-foreground">Loading...</div>}>
-                    <AdminDashboard />
-                </Suspense>
-            </div>
-        );
-    }
-
     return (
         <div className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-5xl text-foreground bg-background min-h-screen transition-colors duration-300 pb-24 md:pb-8 pt-[env(safe-area-inset-top,1rem)] overflow-x-hidden">
             <header className="mb-8 md:mb-12 pt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -185,22 +182,6 @@ function Dashboard() {
                 </div>
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full sm:w-auto">
                     <div className="flex items-center gap-0.5 sm:gap-1 bg-muted/50 p-1 rounded-lg shrink-0">
-                        {!!user.is_admin && (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={() => setCurrentView('admin')}
-                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
-                                        aria-label="Admin"
-                                    >
-                                        <Shield size={16} className="sm:size-[18px]" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Admin Dashboard</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
@@ -229,6 +210,22 @@ function Dashboard() {
                                 <p>Interaction Checker</p>
                             </TooltipContent>
                         </Tooltip>
+                        {settings.aiEnabled && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => setIsChatOpen(true)}
+                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                        aria-label="AI Chat"
+                                    >
+                                        <MessageCircle size={16} className="sm:size-[18px]" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>AI Chat Assistant</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
@@ -255,6 +252,34 @@ function Dashboard() {
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Share with Doctor</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setIsPublicShareOpen(true)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Share Publicly"
+                                >
+                                    <Link2 size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Share Public Link</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setIsTemplatesOpen(true)}
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-background hover:text-accent-foreground h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground shadow-sm"
+                                    aria-label="Browse Templates"
+                                >
+                                    <LayoutTemplate size={16} className="sm:size-[18px]" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Stack Templates</p>
                             </TooltipContent>
                         </Tooltip>
                         <Tooltip>
@@ -314,6 +339,17 @@ function Dashboard() {
                     <RefillModal open={isRefillOpen} onOpenChange={setIsRefillOpen} supplements={supplements} />
                     <InteractionChecker open={isInteractionOpen} onOpenChange={setIsInteractionOpen} supplements={supplements} />
                     <ShareStackDialog open={isShareOpen} onOpenChange={setIsShareOpen} supplements={supplements} />
+                    {settings.aiEnabled && <AIChatDialog open={isChatOpen} onOpenChange={setIsChatOpen} />}
+                    <StackTemplatesDialog
+                        open={isTemplatesOpen}
+                        onOpenChange={setIsTemplatesOpen}
+                        onImportStack={fetchSupplements}
+                    />
+                    <PublicShareDialog
+                        open={isPublicShareOpen}
+                        onOpenChange={setIsPublicShareOpen}
+                        supplements={supplements}
+                    />
                 </div>
             </header>
 
@@ -385,6 +421,30 @@ function Dashboard() {
 }
 
 function App() {
+    // Simple URL-based routing for shared stacks
+    const [shareCode, setShareCode] = useState(null);
+
+    useEffect(() => {
+        const path = window.location.pathname;
+        const match = path.match(/^\/shared\/([a-z0-9]+)$/i);
+        if (match) {
+            setShareCode(match[1]);
+        }
+    }, []);
+
+    // If viewing a shared stack, render the public page
+    if (shareCode) {
+        return (
+            <SettingsProvider>
+                <AuthProvider>
+                    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+                        <SharedStackPage shareCode={shareCode} />
+                    </ThemeProvider>
+                </AuthProvider>
+            </SettingsProvider>
+        );
+    }
+
     return (
         <SettingsProvider>
             <AuthProvider>

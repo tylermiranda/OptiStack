@@ -95,7 +95,10 @@ On first startup, a default admin user is created:
 | `SESSION_SECRET` | ✅ | - | Secret key for session encryption |
 | `ADMIN_PASSWORD` | ✅* | - | Password for default admin user |
 | `ADMIN_USERNAME` | ❌ | `admin` | Username for default admin user |
-| `OPENROUTER_API_KEY` | ❌ | - | [OpenRouter](https://openrouter.ai/keys) API key for AI analysis |
+| `AI_PROVIDER` | ❌ | `openrouter` | AI provider: `openrouter` (cloud) or `ollama` (local) |
+| `OPENROUTER_API_KEY` | ❌ | - | [OpenRouter](https://openrouter.ai/keys) API key for cloud AI |
+| `OLLAMA_URL` | ❌ | `http://localhost:11434` | Ollama server URL for local AI |
+| `OLLAMA_MODEL` | ❌ | `llama3.1:8b` | Default Ollama model to use |
 | `FRONTEND_URL` | ❌ | `http://localhost:3000` | Frontend URL for redirects |
 | `OIDC_ISSUER` | ❌ | - | OIDC provider issuer URL |
 | `OIDC_AUTH_URL` | ❌ | - | OIDC authorization endpoint |
@@ -118,8 +121,14 @@ On first startup, a default admin user is created:
 - 📱 Mobile-optimized UI with safe-area support for iOS
 - 🚀 PWA support for "Add to Home Screen" on iPhone/iPad
 - ℹ️ **Smart Tooltips**: Enhanced interface with informative tooltips for actions and features
+- 💬 **AI Chat Assistant**: Conversational AI for discussing supplements, checking interactions, and getting personalized recommendations
+- 🧬 **Bioavailability Tips**: Each supplement shows absorption tips—what to take with, what to avoid, and timing recommendations
+- 📋 **Stack Templates**: Browse curated supplement stacks for performance, sleep, focus, and longevity goals
+- 👤 **Influencer Stacks**: Pre-built templates from Andrew Huberman, Peter Attia, and more with source attribution
+- 🔗 **Public Stack Sharing**: Generate shareable links for your stack that anyone can view and import
 - 🩺 **Interaction Checker**: AI-powered safety check to identify potential negative interactions in your stack
 - 🧠 **Stack Optimizer**: AI-powered suggestions for missing cofactors and complementary supplements
+- 📊 **AI Analysis History**: Automatically saves every AI stack analysis for future reference with full details and timestamps
 - 💾 **Data Backup & Restore**: Securely backup your database and restore it with a single click
 - 👤 **Single User Mode**: Optional mode to disable authentication for personal use or external auth
 - 🤖 AI-powered supplement analysis (optional)
@@ -128,19 +137,42 @@ On first startup, a default admin user is created:
 
 OptiStack includes optional AI-powered features for analyzing supplements and your full stack:
 
+- **AI Chat Assistant**: Have a conversation with AI about your supplements. Ask about interactions, get recommendations for specific health goals (e.g., "what supplements help with athletic performance?"), and evaluate potential additions to your stack.
 - **Supplement Analysis**: Get AI-generated summaries, recommended dosages, side effects, and optimal timing
 - **Stack Analysis**: Analyze your entire supplement protocol for synergies, benefits, and potential interactions
 - **Stack Optimizer**: Get proactive recommendations for missing cofactors and complementary supplements (e.g., K2 with D3, Copper with Zinc)
 
-AI features are **disabled by default** and will only appear in the UI when you provide an OpenRouter API key:
+### Cloud AI (OpenRouter)
+
+Use cloud-based AI models via [OpenRouter](https://openrouter.ai):
 
 1. Get a free API key from [OpenRouter](https://openrouter.ai/keys)
 2. Add it to your `.env` file: `OPENROUTER_API_KEY=sk-or-...`
 3. Restart the container
 
-If no API key is configured, the AI sections are completely hidden from the UI.
+### Local AI (Ollama) - Privacy-First Option
 
-> **Note:** Currently only [OpenRouter](https://openrouter.ai) is supported as an AI provider. Local AI support (e.g., Ollama) is planned for a future release.
+For complete privacy, OptiStack supports local AI via [Ollama](https://ollama.ai). All AI processing happens on your machine—no data leaves your network.
+
+1. Install Ollama from https://ollama.ai
+2. Pull a model: `ollama pull llama3.1:8b`
+3. Set environment variables in `.env`:
+   ```
+   AI_PROVIDER=ollama
+   OLLAMA_URL=http://localhost:11434
+   OLLAMA_MODEL=llama3.1:8b
+   ```
+4. Restart the container
+
+**Recommended Ollama Models:**
+- `llama3.1:8b` - Good balance of speed and quality
+- `mistral:7b` - Fast responses
+- `gemma2:9b` - Google's open model
+
+> **Note:** When running OptiStack in Docker, use `OLLAMA_URL=http://host.docker.internal:11434` to connect to Ollama running on your host machine.
+
+If no AI provider is configured, the AI sections are completely hidden from the UI.
+
 ## Mobile & PWA Support
 
 OptiStack is designed to work seamlessly on mobile devices:

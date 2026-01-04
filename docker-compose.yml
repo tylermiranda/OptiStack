@@ -21,6 +21,10 @@ services:
       - ADMIN_USERNAME
       - ADMIN_PASSWORD
       - OPENROUTER_API_KEY
+      # Ollama (Local AI) Configuration
+      - AI_PROVIDER=${AI_PROVIDER:-openrouter}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
       - DISABLE_AUTH
     volumes:
       # Persist database across container restarts
