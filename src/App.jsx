@@ -113,6 +113,8 @@ function Dashboard() {
                 setSupplements(supplements.map(s => s.id === savedSup.id ? savedSup : s));
                 setEditingId(null);
                 setIsDialogOpen(false);
+            } else {
+                throw new Error(`Failed to update: ${res.status}`);
             }
         } catch (error) {
             console.error("Failed to update supplement", error);

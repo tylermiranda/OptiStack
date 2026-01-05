@@ -6,3 +6,5 @@ Testing
 AGENT_INSTRUCTIONS.md
 agent-rules.md
 .agent
+repro_bug.js
+.DS_Store
