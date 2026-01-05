@@ -1,6 +1,11 @@
 # Changelog
 
 
+## [2.3.5] - 2026-01-05
+### Fixed
+- **Supplement Addition**: Fixed a critical bug where adding supplements failed silently due to a database error.
+- **URL Validation**: Fixed an issue where supplement URLs without `https://` could not be saved. URLs are now automatically corrected.
+
 ## [2.3.0] - 2026-01-04
 ### Added
 - **AI Prompt Editor**: Admins can now view and edit the AI prompts used for analysis, optimization, and safety checks directly from the Admin panel in settings. This allows for fine-tuning AI behavior and customizing responses.

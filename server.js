@@ -1620,14 +1620,12 @@ app.post('/api/supplements', authenticateToken, (req, res) => {
     db.run(`INSERT INTO supplements (
         user_id, name, short_name, link, price, quantity, dosage, unit_type,
         schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
-        schedule_am, schedule_pm, schedule_am_pills, schedule_pm_pills,
         reason, ai_analysis, recommended_dosage, side_effects, rating, archived,
         cycle_on_days, cycle_off_days, cycle_start_date,
         timing_type, timing_offset_minutes
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
         req.user.id, s.name, s.shortName, s.link, s.price, s.quantity, s.dosage, s.unitType || 'pills',
         s.schedule?.am ? 1 : 0, s.schedule?.pm ? 1 : 0, s.schedule?.amPills || 1, s.schedule?.pmPills || 1,
-        s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0,
         s.reason, s.aiAnalysis, s.recommendedDosage, s.sideEffects, s.rating, 0,
         s.cycle?.onDays || null, s.cycle?.offDays || null, s.cycle?.startDate || null,
         s.timing?.type || 'fixed', s.timing?.offsetMinutes || 0
