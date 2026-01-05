@@ -89,9 +89,12 @@ function Dashboard() {
                 const newSup = await res.json();
                 setSupplements([newSup, ...supplements]);
                 setIsDialogOpen(false);
+            } else {
+                throw new Error(`Failed to add: ${res.status}`);
             }
         } catch (error) {
             console.error("Failed to add supplement", error);
+            throw error;
         }
     };
 

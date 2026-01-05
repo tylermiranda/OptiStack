@@ -63,13 +63,34 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         }));
     };
 
+    const ensureProtocol = (url) => {
+        if (!url) return url;
+        if (!/^https?:\/\//i.test(url)) {
+            return `https://${url}`;
+        }
+        return url;
+    };
+
+    const handleUrlBlur = () => {
+        setFormData(prev => ({
+            ...prev,
+            link: ensureProtocol(prev.link)
+        }));
+    };
+
     const fetchProductDetails = async () => {
         if (!formData.link) return;
+
+        // Ensure protocol before fetching
+        const validLink = ensureProtocol(formData.link);
+        if (validLink !== formData.link) {
+            setFormData(prev => ({ ...prev, link: validLink }));
+        }
 
         setIsFetching(true);
         try {
             // Use the proxy to call our backend
-            const response = await fetch(`/api/scrape?url=${encodeURIComponent(formData.link)}`, {
+            const response = await fetch(`/api/scrape?url=${encodeURIComponent(validLink)}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -262,8 +283,9 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError(null);
 
         const submissionData = {
             ...formData,
@@ -282,14 +304,19 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
             }
         };
 
-        if (initialData) {
-            onUpdate(submissionData);
-        } else {
-            onAdd({
-                ...submissionData,
-                id: Date.now().toString()
-            });
-            setFormData(defaultState);
+        try {
+            if (initialData) {
+                await onUpdate(submissionData);
+            } else {
+                await onAdd({
+                    ...submissionData,
+                    id: Date.now().toString()
+                });
+                setFormData(defaultState);
+            }
+        } catch (err) {
+            console.error("Submission failed:", err);
+            setError("Failed to save supplement. Please try again.");
         }
     };
 
@@ -426,6 +453,7 @@ const AddSupplementForm = ({ onAdd, onUpdate, onCancel, initialData }) => {
                                 placeholder="https://..."
                                 value={formData.link}
                                 onChange={e => setFormData({ ...formData, link: e.target.value })}
+                                onBlur={handleUrlBlur}
                             />
                         </div>
                         <Tooltip>
