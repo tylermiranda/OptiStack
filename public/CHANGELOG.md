@@ -1,6 +1,16 @@
 # Changelog
 
 
+## [2.4.0] - 2026-01-05
+### Added
+- **Enhanced Cost Analysis**: Extended the cost analysis dashboard with deeper insights.
+    - **Top Spender**: Identification of the most expensive daily supplement and its budget impact.
+    - **Best Bang for Buck**: Value analysis comparing personal ratings to daily cost to find the most efficient supplements.
+    - **Most Affordable**: Highlights low-cost, high-value additions to your routine.
+    - **Investment by Health Goal**: New breakdown showing daily spending allocated by health objectives (e.g., Sleep, Focus, Longevity).
+    - **Total Stock Value**: View the total estimated value of your current on-hand supplement inventory.
+    - **Efficiency Metrics**: Average cost per supplement tracking for better budget optimization.
+
 ## [2.3.5] - 2026-01-05
 ### Fixed
 - **Supplement Addition**: Fixed a critical bug where adding supplements failed silently due to a database error.
