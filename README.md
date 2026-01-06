@@ -140,6 +140,7 @@ You can set `DISABLE_AUTH=true` in your `.env` file to bypass the login screen. 
 
 - 🔐 **Admin Dashboard**: Comprehensive user management and system settings
 - 💊 **Weekly Refill Assistant**: Interactive checklist for easy pill organizer filling
+- 📊 **Enhanced Cost Analysis**: Deep insights into your spending with "Top Spender", "Best Bang for Buck" value scoring, and total stock estimation
 - ⚖️ **Volume-based Costing**: Support for supplements by weight (grams, oz) or volume (ml) with accurate cost-per-day calculations
 - 📄 **Comprehensive Doctor Report**: Export your daily supplement protocol to a professional PDF (with optional AI safety analysis)
 - 📱 **Mobile-Optimized**: Responsive layout with safe-area support for iOS devices
