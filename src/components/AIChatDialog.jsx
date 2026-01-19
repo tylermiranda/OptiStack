@@ -222,7 +222,7 @@ export function AIChatDialog({ open, onOpenChange }) {
             <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 gap-0 overflow-hidden sm:flex-row">
 
                 {/* Mobile Sidebar Toggle (Visible only on small screens) */}
-                <div className="sm:hidden absolute top-4 left-4 z-50">
+                <div className="sm:hidden absolute top-[calc(1rem+env(safe-area-inset-top,0px))] left-4 z-50">
                     {shouldShowSidebar && (
                         <Button variant="ghost" size="icon" onClick={() => setShowSidebar(!showSidebar)}>
                             {showSidebar ? <X size={20} /> : <Menu size={20} />}

@@ -1,6 +1,10 @@
 # Changelog
 
 
+## [2.4.1] - 2026-01-08
+### Fixed
+- **iOS UI Compatibility**: Fixed an issue where modal close buttons and toggles overlapped with the iOS status bar (notch/safe area). UI elements now dynamically adjust their vertical position based on the device's safe area insets.
+
 ## [2.4.0] - 2026-01-05
 ### Added
 - **Enhanced Cost Analysis**: Extended the cost analysis dashboard with deeper insights.
