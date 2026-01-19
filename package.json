@@ -2,7 +2,7 @@
     "name": "supplement-manager",
     "description": "Professional-grade supplement & medication manager with AI interaction analysis and inventory tracking.",
     "private": true,
-    "version": "2.4.1",
+    "version": "2.4.2",
     "type": "module",
     "scripts": {
         "dev": "vite",
