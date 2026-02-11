@@ -125,6 +125,61 @@ On first startup, a default admin user is created:
 
 *If `ADMIN_PASSWORD` is not set, the first user to register will become admin.
 
+### Docker Secrets Support
+
+OptiStack supports Docker secrets for sensitive configuration values. For any environment variable, you can use the `_FILE` suffix to point to a file containing the secret value:
+
+```yaml
+environment:
+  # Traditional way (not recommended for secrets)
+  - ADMIN_PASSWORD=mysecretpassword
+  
+  # Docker secrets way (recommended)
+  - ADMIN_PASSWORD_FILE=/run/secrets/optistack_admin_password
+```
+
+**Supported variables with Docker secrets:**
+- `ADMIN_USERNAME_FILE`
+- `ADMIN_PASSWORD_FILE`
+- `JWT_SECRET_FILE`
+- `SESSION_SECRET_FILE`
+- `OPENROUTER_API_KEY_FILE`
+- `OIDC_CLIENT_ID_FILE`
+- `OIDC_CLIENT_SECRET_FILE`
+- And any other environment variable
+
+**Example docker-compose.yml with secrets:**
+
+```yaml
+services:
+  optistack:
+    image: ghcr.io/tylermiranda/optistack:latest
+    environment:
+      - ADMIN_USERNAME_FILE=/run/secrets/admin_username
+      - ADMIN_PASSWORD_FILE=/run/secrets/admin_password
+      - OIDC_CLIENT_ID_FILE=/run/secrets/client_id
+      - OIDC_CLIENT_SECRET_FILE=/run/secrets/client_secret
+    secrets:
+      - admin_username
+      - admin_password
+      - client_id
+      - client_secret
+
+secrets:
+  admin_username:
+    file: ./secrets/admin_username.txt
+  admin_password:
+    file: ./secrets/admin_password.txt
+  client_id:
+    file: ./secrets/client_id.txt
+  client_secret:
+    file: ./secrets/client_secret.txt
+```
+
+See [docker-compose.secrets-example.yml](docker-compose.secrets-example.yml) for a complete example.
+
+**Important:** You cannot set both `VARIABLE` and `VARIABLE_FILE` at the same time. The application will exit with an error if both are set.
+
 ### Single User Mode (Disable Authentication)
 
 You can set `DISABLE_AUTH=true` in your `.env` file to bypass the login screen. This enables "Single User Mode", where the default user has full admin privileges automatically.
