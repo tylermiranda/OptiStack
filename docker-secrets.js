@@ -2,6 +2,33 @@ import fs from 'fs';
 import path from 'path';
 
 /**
+ * Read a secret from a file with security checks.
+ * @private
+ * @param {string} filePath - The file path to read
+ * @param {string} varName - The variable name (for logging)
+ * @returns {string} - The content of the file, trimmed
+ */
+function readSecretFile(filePath, varName) {
+    const resolvedPath = path.resolve(filePath);
+    
+    // Security: Validate the resolved path matches the input after normalization
+    // This prevents path traversal by ensuring the resolved path doesn't escape
+    // to an unintended location
+    const normalizedInput = path.normalize(filePath);
+    const isAbsoluteInput = path.isAbsolute(filePath);
+    
+    // If input was absolute, check it matches the resolved path
+    if (isAbsoluteInput && path.normalize(resolvedPath) !== normalizedInput) {
+        console.error(`ERROR: Invalid path for ${varName}: potential path traversal detected`);
+        process.exit(1);
+    }
+    
+    console.log(`Getting secret ${varName} from ${resolvedPath}`);
+    const content = fs.readFileSync(resolvedPath, 'utf8').trim();
+    return content;
+}
+
+/**
  * Load Docker secrets from environment variables with _FILE suffix.
  * This function checks for environment variables ending in _FILE and reads
  * the content of the file they point to, then exposes it as the base variable name.
@@ -26,18 +53,7 @@ export function getSecretOrEnv(varName) {
     // If _FILE variant is set, read the file
     if (fileVarValue) {
         try {
-            const secretPath = path.resolve(fileVarValue);
-            
-            // Security: Ensure the path doesn't contain directory traversal attempts
-            // This is a defense-in-depth measure, as environment variables should be trusted
-            if (fileVarValue.includes('..')) {
-                console.error(`ERROR: Invalid path for ${varName}: path traversal detected in ${fileVarValue}`);
-                process.exit(1);
-            }
-            
-            console.log(`Getting secret ${varName} from ${secretPath}`);
-            const content = fs.readFileSync(secretPath, 'utf8').trim();
-            return content;
+            return readSecretFile(fileVarValue, varName);
         } catch (error) {
             console.error(`ERROR: Failed to read secret file for ${varName} at ${fileVarValue}:`, error.message);
             process.exit(1);
@@ -69,18 +85,8 @@ export function initDockerSecrets() {
 
         // Read the file and set the base variable
         try {
-            const secretPath = path.resolve(fileVarValue);
-            
-            // Security: Ensure the path doesn't contain directory traversal attempts
-            // This is a defense-in-depth measure, as environment variables should be trusted
-            if (fileVarValue.includes('..')) {
-                console.error(`ERROR: Invalid path for ${baseVarName}: path traversal detected in ${fileVarValue}`);
-                process.exit(1);
-            }
-            
             console.log(`Configure ${baseVarName}`);
-            console.log(`Getting secret ${baseVarName} from ${secretPath}`);
-            const content = fs.readFileSync(secretPath, 'utf8').trim();
+            const content = readSecretFile(fileVarValue, baseVarName);
             process.env[baseVarName] = content;
             delete process.env[fileVarName]; // Remove the _FILE variant
         } catch (error) {
