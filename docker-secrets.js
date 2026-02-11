@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
+const FILE_SUFFIX = '_FILE';
+
 /**
  * Read a secret from a file with security checks.
  * @private
@@ -11,21 +13,32 @@ import path from 'path';
 function readSecretFile(filePath, varName) {
     const resolvedPath = path.resolve(filePath);
     
-    // Security: Validate the resolved path matches the input after normalization
-    // This prevents path traversal by ensuring the resolved path doesn't escape
-    // to an unintended location
-    const normalizedInput = path.normalize(filePath);
-    const isAbsoluteInput = path.isAbsolute(filePath);
-    
-    // If input was absolute, check it matches the resolved path
-    if (isAbsoluteInput && path.normalize(resolvedPath) !== normalizedInput) {
-        console.error(`ERROR: Invalid path for ${varName}: potential path traversal detected`);
+    // Security: Basic validation to detect obvious path traversal attempts
+    // Note: This is defense-in-depth. The primary security relies on:
+    // 1. File system permissions (secrets should only be readable by the app)
+    // 2. Trusted environment variables (set by system admin, not users)
+    if (filePath.includes('..') || filePath.includes('~')) {
+        console.error(`ERROR: Invalid path for ${varName}: suspicious characters detected in ${filePath}`);
         process.exit(1);
     }
     
     console.log(`Getting secret ${varName} from ${resolvedPath}`);
     const content = fs.readFileSync(resolvedPath, 'utf8').trim();
     return content;
+}
+
+/**
+ * Validate mutual exclusivity of direct and file-based environment variables.
+ * @private
+ * @param {string} varName - The base variable name
+ * @param {string} directValue - The direct environment variable value
+ * @param {string} fileValue - The file-based environment variable value
+ */
+function validateMutualExclusivity(varName, directValue, fileValue) {
+    if (directValue && fileValue) {
+        console.error(`ERROR: Both ${varName} and ${varName}${FILE_SUFFIX} are set (but are exclusive)`);
+        process.exit(1);
+    }
 }
 
 /**
@@ -40,15 +53,12 @@ function readSecretFile(filePath, varName) {
  * @returns {string|undefined} - The value from the file, or undefined if not set
  */
 export function getSecretOrEnv(varName) {
-    const fileVarName = `${varName}_FILE`;
+    const fileVarName = `${varName}${FILE_SUFFIX}`;
     const fileVarValue = process.env[fileVarName];
     const directValue = process.env[varName];
 
-    // If both are set, error out (they are mutually exclusive)
-    if (directValue && fileVarValue) {
-        console.error(`ERROR: Both ${varName} and ${fileVarName} are set (but are exclusive)`);
-        process.exit(1);
-    }
+    // Validate mutual exclusivity
+    validateMutualExclusivity(varName, directValue, fileVarValue);
 
     // If _FILE variant is set, read the file
     if (fileVarValue) {
@@ -70,18 +80,15 @@ export function getSecretOrEnv(varName) {
  */
 export function initDockerSecrets() {
     const envVars = Object.keys(process.env);
-    const fileVars = envVars.filter(key => key.endsWith('_FILE') && process.env[key]);
+    const fileVars = envVars.filter(key => key.endsWith(FILE_SUFFIX) && process.env[key]);
 
     fileVars.forEach(fileVarName => {
-        const baseVarName = fileVarName.slice(0, -5); // Remove '_FILE' suffix
+        const baseVarName = fileVarName.slice(0, -FILE_SUFFIX.length);
         const fileVarValue = process.env[fileVarName];
         const directValue = process.env[baseVarName];
 
-        // If both are set, error out (they are mutually exclusive)
-        if (directValue && fileVarValue) {
-            console.error(`ERROR: Both ${baseVarName} and ${fileVarName} are set (but are exclusive)`);
-            process.exit(1);
-        }
+        // Validate mutual exclusivity
+        validateMutualExclusivity(baseVarName, directValue, fileVarValue);
 
         // Read the file and set the base variable
         try {
