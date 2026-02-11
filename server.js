@@ -12,6 +12,10 @@ import db from './database.js';
 import multer from 'multer';
 import fs from 'fs';
 import crypto from 'crypto';
+import { initDockerSecrets } from './docker-secrets.js';
+
+// Initialize Docker secrets support
+initDockerSecrets();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
