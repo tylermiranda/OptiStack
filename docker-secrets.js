@@ -27,6 +27,14 @@ export function getSecretOrEnv(varName) {
     if (fileVarValue) {
         try {
             const secretPath = path.resolve(fileVarValue);
+            
+            // Security: Ensure the path doesn't contain directory traversal attempts
+            // This is a defense-in-depth measure, as environment variables should be trusted
+            if (fileVarValue.includes('..')) {
+                console.error(`ERROR: Invalid path for ${varName}: path traversal detected in ${fileVarValue}`);
+                process.exit(1);
+            }
+            
             console.log(`Getting secret ${varName} from ${secretPath}`);
             const content = fs.readFileSync(secretPath, 'utf8').trim();
             return content;
@@ -62,6 +70,14 @@ export function initDockerSecrets() {
         // Read the file and set the base variable
         try {
             const secretPath = path.resolve(fileVarValue);
+            
+            // Security: Ensure the path doesn't contain directory traversal attempts
+            // This is a defense-in-depth measure, as environment variables should be trusted
+            if (fileVarValue.includes('..')) {
+                console.error(`ERROR: Invalid path for ${baseVarName}: path traversal detected in ${fileVarValue}`);
+                process.exit(1);
+            }
+            
             console.log(`Configure ${baseVarName}`);
             console.log(`Getting secret ${baseVarName} from ${secretPath}`);
             const content = fs.readFileSync(secretPath, 'utf8').trim();
